@@ -14,4 +14,8 @@ public protocol AppAttestServiceProtocol: Sendable {
 }
 
 /// Extension to conform DCAppAttestService to AppAttestServiceProtocol so it's easier to mock in tests.
-extension DCAppAttestService: AppAttestServiceProtocol {}
+#if compiler(>=6.0)
+extension DCAppAttestService: @retroactive @unchecked Sendable, AppAttestServiceProtocol {}
+#else
+extension DCAppAttestService: @unchecked Sendable, AppAttestServiceProtocol {}
+#endif
