@@ -180,6 +180,20 @@ public struct ScrollEdgeTargetShim: Sendable {
     public static let all = ScrollEdgeTargetShim()
 }
 
+public struct GlassEffectDescriptorShim: Sendable {
+    public static let clear = GlassEffectDescriptorShim()
+    public init() {}
+    public func interactive() -> GlassEffectDescriptorShim { self }
+    public func tint(_ color: Color) -> GlassEffectDescriptorShim { self }
+}
+
+public struct GlassEffectShapeShim: Sendable {
+    public init() {}
+    public static func rect(cornerRadius: CGFloat) -> GlassEffectShapeShim {
+        return GlassEffectShapeShim()
+    }
+}
+
 extension View {
     @ViewBuilder
     public func safeAreaBar(edge: VerticalEdge, @ViewBuilder content: () -> some View) -> some View {
@@ -188,6 +202,11 @@ extension View {
 
     @ViewBuilder
     public func scrollEdgeEffectStyle(_ style: ScrollEdgeEffectStyleShim, for target: ScrollEdgeTargetShim) -> some View {
+        self
+    }
+
+    @ViewBuilder
+    public func glassEffect(_ effect: GlassEffectDescriptorShim, in shape: GlassEffectShapeShim = GlassEffectShapeShim()) -> some View {
         self
     }
 }
