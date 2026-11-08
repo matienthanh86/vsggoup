@@ -3,7 +3,10 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import Foundation
+#if canImport(FoundationModels)
 import FoundationModels
+#endif
+import Common
 
 /// Error types for summarization flows, mapping underlying model errors to user‑friendly cases.
 /// The UI layer will rely on userMessage to display appropriate messages.

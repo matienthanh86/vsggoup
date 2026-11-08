@@ -4,7 +4,10 @@
 
 @testable import SummarizeKit
 
+#if canImport(FoundationModels)
 import FoundationModels
+#endif
+import Common
 import Foundation
 
 @available(iOS 26, *)

@@ -4,7 +4,9 @@
 
 import Common
 import Foundation
+#if canImport(FoundationModels)
 import FoundationModels
+#endif
 import Shared
 
 protocol LanguageModelProtocol {

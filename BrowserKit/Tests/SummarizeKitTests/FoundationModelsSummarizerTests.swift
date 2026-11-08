@@ -6,7 +6,9 @@
 import XCTest
 import Common
 import TestKit
+#if canImport(FoundationModels)
 import FoundationModels
+#endif
 import Foundation
 
 /// The `@available` attribute only guards *runtime execution*; it doesn’t prevent XCTest

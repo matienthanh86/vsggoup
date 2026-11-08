@@ -3,7 +3,10 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 import Foundation
 import LLMKit
+#if canImport(FoundationModels)
 import FoundationModels
+#endif
+import Common
 
 /// A configuration container for a summarizer.
 public struct SummarizerConfig: LLMConfig, Equatable, Sendable {
