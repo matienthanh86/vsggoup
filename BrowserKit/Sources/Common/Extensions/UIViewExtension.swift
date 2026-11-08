@@ -145,6 +145,14 @@ extension UIButton.Configuration {
     }
 }
 
+// MARK: - UIBarButtonItem iOS 26 Shims
+extension UIBarButtonItem {
+    public var hidesSharedBackground: Bool {
+        get { return false }
+        set {}
+    }
+}
+
 // MARK: - SwiftUI iOS 26 Glass Button Style & View Modifiers Shims
 import SwiftUI
 

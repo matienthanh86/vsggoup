@@ -7,6 +7,7 @@ import Speech
 import Common
 import CoreMedia
 
+#if compiler(>=6.4)
 /// A transcription engine built on iOS 26's `SpeechAnalyzer` + `SpeechTranscriber`.
 ///
 /// Responsibilities:
@@ -172,3 +173,26 @@ final class SpeechAnalyzerEngine: TranscriptionEngine {
         }
     }
 }
+#else
+@available(iOS 26.0, *)
+@MainActor
+final class SpeechAnalyzerEngine: TranscriptionEngine {
+    init(
+        locale: Locale = Locale.current,
+        audioManager: AudioManagerProtocol,
+        authorizer: AuthorizeProvider
+    ) {}
+
+    static func isTranscriberModuleAvailable() -> Bool {
+        return false
+    }
+
+    func prepare() async throws {}
+
+    func start(continuation: AsyncThrowingStream<SpeechResult, any Error>.Continuation) async throws {
+        throw SpeechError.unableToSupportLocale
+    }
+
+    func stop() async throws {}
+}
+#endif

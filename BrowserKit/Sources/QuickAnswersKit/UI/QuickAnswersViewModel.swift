@@ -50,7 +50,7 @@ final class QuickAnswersViewModel {
         prefs: Prefs,
         telemetry: QuickAnswersTelemetry,
         configFetcher: QuickAnswersConfigFetcher?,
-        makeService: (Prefs, QuickAnswersConfigFetcher) throws -> QuickAnswersService = { prefs, configFetcher in
+        makeService: @MainActor (Prefs, QuickAnswersConfigFetcher) throws -> QuickAnswersService = { prefs, configFetcher in
             try DefaultQuickAnswersService(configFetcher: configFetcher, prefs: prefs)
         }
     ) {
