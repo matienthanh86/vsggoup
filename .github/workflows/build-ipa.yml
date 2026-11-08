@@ -44,7 +44,7 @@ jobs:
       - name: Resolve SPM Dependencies
         working-directory: ${{ env.browser }}
         run: |
-          xcodebuild -resolvePackageDependencies -project Client.xcodeproj
+          xcodebuild -resolvePackageDependencies -project Client.xcodeproj -onlyUsePackageVersionsFromResolvedFile || xcodebuild -resolvePackageDependencies -project Client.xcodeproj
 
       - name: Build Archive
         working-directory: ${{ env.browser }}
