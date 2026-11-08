@@ -5,12 +5,12 @@
 import Foundation
 
 @MainActor
-final class SubscriptionWrapper<State: Equatable>: @MainActor Hashable {
+final class SubscriptionWrapper<State: Equatable>: Hashable {
     private let originalSubscription: Subscription<State>
     weak var subscriber: AnyStoreSubscriber?
     private let objectIdentifier: ObjectIdentifier
 
-    func hash(into hasher: inout Hasher) {
+    nonisolated func hash(into hasher: inout Hasher) {
         hasher.combine(self.objectIdentifier)
     }
 
@@ -36,8 +36,8 @@ final class SubscriptionWrapper<State: Equatable>: @MainActor Hashable {
         originalSubscription.newValues(oldState: oldState, newState: newState)
     }
 
-    static func == (left: SubscriptionWrapper<State>,
-                    right: SubscriptionWrapper<State>) -> Bool {
+    nonisolated static func == (left: SubscriptionWrapper<State>,
+                                right: SubscriptionWrapper<State>) -> Bool {
         return left.objectIdentifier == right.objectIdentifier
     }
 }
