@@ -79,6 +79,8 @@
 			<array>
 				<string>$(MOZ_PUBLIC_URL_SCHEME)</string>
 				<string>$(MOZ_INTERNAL_URL_SCHEME)</string>
+				<string>vsgnoti</string>
+				<string>vsg</string>
 				<string>http</string>
 				<string>https</string>
 			</array>

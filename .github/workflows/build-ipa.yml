@@ -1,0 +1,71 @@
+name: "Build VSG Group IPA"
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+env:
+  browser: firefox-ios
+  xcode_version: "16.2"
+  xcodebuild_scheme: Fennec
+
+jobs:
+  build-ipa:
+    name: Build IPA
+    runs-on: macos-15
+    steps:
+      - name: Check out source code
+        uses: actions/checkout@v4
+
+      - name: Setup Xcode
+        id: xcode
+        run: |
+          sudo rm -rf /Applications/Xcode.app
+          sudo xcode-select -s /Applications/Xcode_${{ env.xcode_version }}.app/Contents/Developer
+          xcodebuild -version
+
+      - name: Run Bootstrap
+        run: |
+          ./bootstrap.sh focus
+          ./bootstrap.sh firefox --force
+
+      - name: Resolve SPM Dependencies
+        working-directory: ${{ env.browser }}
+        run: |
+          xcodebuild -resolvePackageDependencies -project Client.xcodeproj
+
+      - name: Build Archive
+        working-directory: ${{ env.browser }}
+        run: |
+          xcodebuild archive \
+            -project Client.xcodeproj \
+            -scheme ${{ env.xcodebuild_scheme }} \
+            -destination "generic/platform=iOS" \
+            -archivePath ../build/Fennec.xcarchive \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            AD_HOC_CODE_SIGNING_ALLOWED=YES
+
+      - name: Package IPA
+        run: |
+          mkdir -p build/Payload
+          APP_PATH=$(find build/Fennec.xcarchive/Products/Applications -name "*.app" | head -n 1)
+          if [ -z "$APP_PATH" ]; then
+            echo "Error: .app bundle not found in archive"
+            exit 1
+          fi
+          echo "Found app at: $APP_PATH"
+          cp -r "$APP_PATH" build/Payload/
+          cd build
+          zip -r -y VSG-Group.ipa Payload
+          ls -lh VSG-Group.ipa
+
+      - name: Upload IPA Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: VSG-Group-iOS-IPA
+          path: build/VSG-Group.ipa
+          retention-days: 14
+

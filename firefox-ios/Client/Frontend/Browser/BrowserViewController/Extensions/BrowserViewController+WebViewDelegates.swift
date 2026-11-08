@@ -638,6 +638,33 @@ extension BrowserViewController: WKNavigationDelegate {
             handleAdsTelemetryForNavigation(url: url, tab: tab)
         }
 
+        if (url.scheme ?? "").lowercased() == "vsgnoti" {
+            let host = url.host?.lowercased() ?? ""
+            let path = url.path.lowercased()
+            let components = URLComponents(url: url, resolvingAgainstBaseURL: false)
+            let action = components?.queryItems?.first(where: { $0.name.lowercased() == "action" })?.value?.lowercased() ?? ""
+            let isLogout = host == "logout" || path.contains("logout") || action == "logout"
+
+            if isLogout {
+                let appId = components?.queryItems?.first(where: { $0.name == "appId" })?.value ?? "dino"
+                AgentNotiFeature.shared.logout(appId: appId)
+            } else {
+                let token = components?.queryItems?.first(where: { $0.name == "token" })?.value
+                    ?? components?.queryItems?.first(where: { $0.name == "ticket" })?.value
+                    ?? components?.queryItems?.first(where: { $0.name == "code" })?.value
+                    ?? (url.lastPathComponent.isEmpty ? nil : url.lastPathComponent)
+
+                if let token = token, !token.isEmpty, token != "connect" {
+                    let savedToken = AgentNotiFeature.shared.getSavedAuthToken()
+                    if !(AgentNotiFeature.shared.isLoggedIn() && savedToken == token) {
+                        AgentNotiFeature.shared.connectViaTicket(ticket: token)
+                    }
+                }
+            }
+            decisionHandler(.cancel)
+            return
+        }
+
         if InternalURL.isValid(url: url) {
             handleInternalURLNavigation(url: url, navigationAction: navigationAction, decisionHandler: decisionHandler)
             return
@@ -1499,6 +1526,111 @@ extension BrowserViewController: WKNavigationDelegate {
 
         scrollController.configureRefreshControl()
         navigationHandler?.removeDocumentLoading()
+
+        if let currentUrl = webView.url?.absoluteString.lowercased(),
+           currentUrl.contains("dino.top") || currentUrl.contains("vietravel") {
+            AgentNotiFeature.shared.saveBaseWebUrl(webView.url?.absoluteString ?? "")
+
+            if (currentUrl.contains("/auth/login") || currentUrl.contains("/auth/guest")) && AgentNotiFeature.shared.isLoggedIn() {
+                AgentNotiFeature.shared.logout(appId: "dino")
+            }
+
+            let jsScript = """
+            (function() {
+                if (window.__vsgAuthInstalled) return;
+                window.__vsgAuthInstalled = true;
+
+                try { localStorage.removeItem('__vsgConnectedToken'); } catch(e) {}
+                let lastTriggeredToken = null;
+                let checkTimer = null;
+
+                function scheduleCheck(delay) {
+                    if (checkTimer) clearTimeout(checkTimer);
+                    checkTimer = setTimeout(check, delay || 500);
+                }
+
+                function extractToken() {
+                    try {
+                        const raw = localStorage.getItem('dino-erp-portal-token');
+                        if (raw && !raw.includes('landing-anonymous')) {
+                            const data = JSON.parse(raw);
+                            if (typeof data === 'string' && data.length > 20) return data;
+                            if (data && (data.accessToken || data.token)) {
+                                const t = data.accessToken || data.token;
+                                if (t && t.length > 20) return t;
+                            }
+                        }
+                    } catch(e) {}
+                    try {
+                        const p = localStorage.getItem('persist:v100-demo1-auth');
+                        if (p) {
+                            const obj = JSON.parse(p);
+                            const rawUser = obj.user || obj.currentUser;
+                            if (rawUser && rawUser !== '"Guest"' && rawUser !== 'Guest' && rawUser !== 'null') {
+                                const t = obj.token || obj.accessToken;
+                                if (t && typeof t === 'string') {
+                                    const clean = t.replace(/^"|"$/g, '').trim();
+                                    if (clean.length > 20 && clean !== 'null' && !clean.includes('landing-anonymous')) return clean;
+                                }
+                            }
+                        }
+                    } catch(e) {}
+                    try {
+                        for (let i = 0; i < localStorage.length; i++) {
+                            const k = localStorage.key(i);
+                            const v = localStorage.getItem(k);
+                            if (v && v.length > 50 && !v.includes('landing-anonymous') && !v.includes('"Guest"')) {
+                                const m = v.match(/eyJ[a-zA-Z0-9_-]{10,}\\.[a-zA-Z0-9_-]{10,}\\.[a-zA-Z0-9_-]{10,}/);
+                                if (m) return m[0];
+                            }
+                        }
+                    } catch(e) {}
+                    return null;
+                }
+
+                function check() {
+                    const path = window.location.pathname || '';
+                    if (path.includes('/auth/login') || path.includes('/auth/guest')) {
+                        lastTriggeredToken = null;
+                        return;
+                    }
+                    const token = extractToken();
+                    if (token && token.length > 20 && token !== lastTriggeredToken) {
+                        lastTriggeredToken = token;
+                        window.location.href = 'vsgnoti://connect?token=' + encodeURIComponent(token);
+                    }
+                }
+
+                const origSetItem = localStorage.setItem;
+                localStorage.setItem = function(key, val) {
+                    origSetItem.apply(this, arguments);
+                    if (key && (key.indexOf('token') !== -1 || key.indexOf('auth') !== -1 || key.indexOf('user') !== -1)) {
+                        scheduleCheck(800);
+                    }
+                };
+
+                const origPush = history.pushState;
+                if (origPush) {
+                    history.pushState = function() {
+                        origPush.apply(this, arguments);
+                        scheduleCheck(800);
+                    };
+                }
+                const origReplace = history.replaceState;
+                if (origReplace) {
+                    history.replaceState = function() {
+                        origReplace.apply(this, arguments);
+                        scheduleCheck(800);
+                    };
+                }
+                window.addEventListener('popstate', function() { scheduleCheck(800); });
+                window.addEventListener('hashchange', function() { scheduleCheck(800); });
+                window.addEventListener('storage', function() { scheduleCheck(800); });
+                scheduleCheck(1000);
+            })();
+            """
+            webView.evaluateJavaScript(jsScript, completionHandler: nil)
+        }
 
         if let tab = tabManager[webView] {
             if tab == tabManager.selectedTab {

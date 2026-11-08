@@ -5,7 +5,7 @@
 import UIKit
 
 public enum AppName: String, CustomStringConvertible {
-    case shortName = "Firefox"
+    case shortName = "VSG Group"
 
     public var description: String {
         return self.rawValue
@@ -21,7 +21,7 @@ public enum PocketAppName: String, CustomStringConvertible {
 }
 
 public enum MozillaName: String, CustomStringConvertible {
-    case shortName = "Mozilla"
+    case shortName = "VSG Group"
 
     public var description: String {
         return self.rawValue

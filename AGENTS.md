@@ -44,3 +44,9 @@ GitHub ticket number can be found at the bottom of the JIRA ticket.
 ## Runbooks
 
 - **Xcode version upgrade.** When bumping the Xcode version used by CI/local builds, follow [docs/xcode-upgrade.md](docs/xcode-upgrade.md).
+
+## VSG AgentNoti Rules
+- Backend API: Only use `https://agent-dev-api.dino.top` as the backend endpoint. Never use ngrok, emulator fallbacks, or local endpoints.
+- Push Notification Provider: Uses Apple Push Notification service (APNs) provider `apns` with device push address.
+- Git Push & Remote Operations: NEVER run `git push` automatically. Always provide the exact command line for the user to push code themselves.
+- Domain & Policy Compliance: Ensure all user-facing documentation, support, privacy, and terms links route to `https://vsg.top` and keep Mozilla Accounts / Sync hidden from UI.

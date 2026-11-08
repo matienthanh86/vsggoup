@@ -352,25 +352,7 @@ class AppSettingsTableViewController: SettingsTableViewController,
     }
 
     private func getAccountSetting() -> [SettingSection] {
-        let accountSectionTitle = NSAttributedString(string: .FxAFirefoxAccount)
-
-        let attributedString = NSAttributedString(string: .Settings.Sync.ButtonDescription)
-        let accountFooterText = !(profile?.hasAccount() ?? false) ? attributedString : nil
-
-        var settings = [
-            // Without a Firefox Account:
-            ConnectSetting(settings: self, settingsDelegate: parentCoordinator),
-            AdvancedAccountSetting(settings: self, isHidden: showDebugSettings, settingsDelegate: parentCoordinator),
-            // With a Firefox Account:
-            AccountStatusSetting(settings: self, settingsDelegate: parentCoordinator),
-            SyncNowSetting(settings: self, settingsDelegate: parentCoordinator)
-        ]
-        if AppInfo.isChinaEdition, let profile {
-            settings.append(ChinaSyncServiceSetting(profile: profile, settingsDelegate: self))
-        }
-        return [
-            SettingSection(title: accountSectionTitle, footerTitle: accountFooterText, children: settings)
-        ]
+        return []
     }
 
     private func getGeneralSettings() -> [SettingSection] {

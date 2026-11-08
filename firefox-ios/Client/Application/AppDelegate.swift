@@ -130,6 +130,7 @@ class AppDelegate: UIResponder,
         fixSimulatorDevBuild(application)
 
         pushNotificationSetup()
+        AgentNotiFeature.shared.start()
         appLaunchUtil?.setUpPostLaunchDependencies()
         backgroundWorkUtility = BackgroundFetchAndProcessingUtility()
         backgroundWorkUtility?.registerUtility(BackgroundSyncUtility(profile: profile, application: application))

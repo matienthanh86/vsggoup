@@ -54,6 +54,15 @@ class SceneDelegate: UIResponder,
         self.sceneCoordinator = sceneCoordinator
         self.window = sceneCoordinator.window
         sceneCoordinator.start()
+        NotificationCenter.default.addObserver(
+            forName: NSNotification.Name("AgentNotiOpenURLInBrowser"),
+            object: nil,
+            queue: .main
+        ) { [weak self] notif in
+            guard let url = notif.userInfo?["url"] as? URL else { return }
+            self?.handleOpenURL(url)
+        }
+
         handle(connectionOptions: connectionOptions)
         if !sessionManager.launchSessionProvider.openedFromExternalSource {
             shareTelemetry.cancelOpenURLTimeRecord()
@@ -171,6 +180,32 @@ class SceneDelegate: UIResponder,
     }
 
     func handleOpenURL(_ url: URL) {
+        if (url.scheme ?? "").lowercased() == "vsgnoti" {
+            let host = url.host?.lowercased() ?? ""
+            let path = url.path.lowercased()
+            let components = URLComponents(url: url, resolvingAgainstBaseURL: false)
+            let action = components?.queryItems?.first(where: { $0.name.lowercased() == "action" })?.value?.lowercased() ?? ""
+            let isLogout = host == "logout" || path.contains("logout") || action == "logout"
+
+            if isLogout {
+                let appId = components?.queryItems?.first(where: { $0.name == "appId" })?.value ?? "dino"
+                AgentNotiFeature.shared.logout(appId: appId)
+            } else {
+                let token = components?.queryItems?.first(where: { $0.name == "token" })?.value
+                    ?? components?.queryItems?.first(where: { $0.name == "ticket" })?.value
+                    ?? components?.queryItems?.first(where: { $0.name == "code" })?.value
+                    ?? (url.lastPathComponent.isEmpty ? nil : url.lastPathComponent)
+
+                if let token = token, !token.isEmpty, token != "connect" {
+                    let savedToken = AgentNotiFeature.shared.getSavedAuthToken()
+                    if !(AgentNotiFeature.shared.isLoggedIn() && savedToken == token) {
+                        AgentNotiFeature.shared.connectViaTicket(ticket: token)
+                    }
+                }
+            }
+            return
+        }
+
         routeBuilder.configure(
             isPrivate: UserDefaults.standard.bool(
                 forKey: PrefsKeys.LastSessionWasPrivate

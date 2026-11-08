@@ -49,10 +49,10 @@ class HomepageHeaderCell: UICollectionViewCell, ReusableCell, ThemeApplicable, F
         imageView.contentMode = .scaleAspectFit
     }
 
-    private lazy var logoTextImage: UIImageView = .build { imageView in
-        imageView.image = UIImage(imageLiteralResourceName: ImageIdentifiers.homeHeaderLogoText)
-            .withRenderingMode(.alwaysTemplate)
-        imageView.contentMode = .scaleAspectFit
+    private lazy var logoTextImage: UILabel = .build { label in
+        label.text = AppName.shortName.rawValue
+        label.font = UIFont.systemFont(ofSize: 22, weight: .bold)
+        label.setContentHuggingPriority(.required, for: .horizontal)
     }
 
     private lazy var quickAnswersButton: QuickAnswersEntryPointButton = {
@@ -106,7 +106,6 @@ class HomepageHeaderCell: UICollectionViewCell, ReusableCell, ThemeApplicable, F
         NSLayoutConstraint.activate([
             logoImageWidthConstraint,
             logoImageHeightConstraint,
-            logoTextImage.widthAnchor.constraint(equalToConstant: UX.firefoxTextImageSize.width),
             logoTextImage.heightAnchor.constraint(equalToConstant: UX.firefoxTextImageSize.height),
 
             logoContainerView.topAnchor.constraint(equalTo: contentView.topAnchor),
@@ -242,7 +241,7 @@ class HomepageHeaderCell: UICollectionViewCell, ReusableCell, ThemeApplicable, F
     // MARK: - ThemeApplicable
     func applyTheme(theme: Theme) {
         self.theme = theme
-        logoTextImage.tintColor = logoTextColor ?? theme.colors.textPrimary
+        logoTextImage.textColor = logoTextColor ?? theme.colors.textPrimary
 
         updateQuickAnswersButton()
     }

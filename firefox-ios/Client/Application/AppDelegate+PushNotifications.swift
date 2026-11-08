@@ -92,6 +92,8 @@ extension AppDelegate: @MainActor UNUserNotificationCenterDelegate {
             default:
                 notificationSurfaceManager.didTapNotification(messageId)
             }
+        } else if let targetUrl = (content.userInfo["targetUrl"] as? String) ?? (content.userInfo["url"] as? String) {
+            AgentNotiFeature.shared.openUrlInBrowser(targetUrl)
         } else if content.categoryIdentifier == NotificationCloseTabs.notificationCategoryId {
             switch response.actionIdentifier {
             case UNNotificationDefaultActionIdentifier:
@@ -111,6 +113,13 @@ extension AppDelegate: @MainActor UNUserNotificationCenterDelegate {
         _ center: UNUserNotificationCenter,
         willPresent notification: UNNotification
     ) async -> UNNotificationPresentationOptions {
+        if notification.request.content.userInfo["eventType"] != nil ||
+            notification.request.content.userInfo["callId"] != nil ||
+            notification.request.content.userInfo["roomToken"] != nil {
+            AgentNotiFeature.shared.handleIncomingNotification(userInfo: notification.request.content.userInfo)
+            return [.list, .banner, .sound]
+        }
+
         if profile.prefs.boolForKey(PendingAccountDisconnectedKey) ?? false {
             profile.removeAccount()
 
@@ -126,6 +135,8 @@ extension AppDelegate: @MainActor UNUserNotificationCenterDelegate {
 extension AppDelegate {
     func application(_ application: UIApplication,
                      didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
+        AgentNotiFeature.shared.handleNewToken(deviceToken: deviceToken)
+
         var notificationAllowed = true
         if UserDefaults.standard.object(forKey: PrefsKeys.Notifications.SyncNotifications) != nil {
             notificationAllowed = UserDefaults.standard.bool(forKey: PrefsKeys.Notifications.SyncNotifications)
@@ -159,5 +170,14 @@ extension AppDelegate {
         logger.log("Failed to register for APNS",
                    level: .info,
                    category: .setup)
+    }
+
+    func application(
+        _ application: UIApplication,
+        didReceiveRemoteNotification userInfo: [AnyHashable: Any],
+        fetchCompletionHandler completionHandler: @escaping (UIBackgroundFetchResult) -> Void
+    ) {
+        AgentNotiFeature.shared.handleIncomingNotification(userInfo: userInfo)
+        completionHandler(.newData)
     }
 }
