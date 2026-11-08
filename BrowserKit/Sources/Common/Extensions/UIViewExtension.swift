@@ -105,7 +105,7 @@ public struct UILayoutGuideRegion: Sendable {
 }
 
 extension UIView {
-    @objc public func layoutGuide(for region: UILayoutGuideRegion) -> UILayoutGuide {
+    public func layoutGuide(for region: UILayoutGuideRegion) -> UILayoutGuide {
         return safeAreaLayoutGuide
     }
 }
