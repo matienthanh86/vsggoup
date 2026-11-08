@@ -129,4 +129,67 @@ open class UIGlassEffect: UIVisualEffect, @unchecked Sendable {
         self.init()
     }
 }
+
+// MARK: - UIButton.Configuration iOS 26 Glass Shims
+extension UIButton.Configuration {
+    public static func prominentClearGlass() -> UIButton.Configuration {
+        return .plain()
+    }
+
+    public static func glass() -> UIButton.Configuration {
+        return .plain()
+    }
+
+    public static func prominentGlass() -> UIButton.Configuration {
+        return .filled()
+    }
+}
+
+// MARK: - SwiftUI iOS 26 Glass Button Style & View Modifiers Shims
+import SwiftUI
+
+public struct GlassProminentButtonStyle: PrimitiveButtonStyle, ButtonStyle {
+    public init() {}
+    public func makeBody(configuration: PrimitiveButtonStyle.Configuration) -> some View {
+        Button(role: configuration.role, action: configuration.trigger) {
+            configuration.label
+        }
+    }
+    public func makeBody(configuration: ButtonStyle.Configuration) -> some View {
+        configuration.label
+    }
+}
+
+extension PrimitiveButtonStyle where Self == GlassProminentButtonStyle {
+    public static var glassProminent: GlassProminentButtonStyle {
+        return GlassProminentButtonStyle()
+    }
+}
+
+extension ButtonStyle where Self == GlassProminentButtonStyle {
+    public static var glassProminent: GlassProminentButtonStyle {
+        return GlassProminentButtonStyle()
+    }
+}
+
+public struct ScrollEdgeEffectStyleShim: Sendable {
+    public static let soft = ScrollEdgeEffectStyleShim()
+}
+
+public struct ScrollEdgeTargetShim: Sendable {
+    public static let bottom = ScrollEdgeTargetShim()
+    public static let all = ScrollEdgeTargetShim()
+}
+
+extension View {
+    @ViewBuilder
+    public func safeAreaBar(edge: VerticalEdge, @ViewBuilder content: () -> some View) -> some View {
+        self.safeAreaInset(edge: edge, content: content)
+    }
+
+    @ViewBuilder
+    public func scrollEdgeEffectStyle(_ style: ScrollEdgeEffectStyleShim, for target: ScrollEdgeTargetShim) -> some View {
+        self
+    }
+}
 #endif
