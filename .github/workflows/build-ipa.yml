@@ -49,6 +49,7 @@ jobs:
       - name: Build Archive
         working-directory: ${{ env.browser }}
         run: |
+          set -o pipefail
           xcodebuild archive \
             -project Client.xcodeproj \
             -scheme ${{ env.xcodebuild_scheme }} \
@@ -61,7 +62,23 @@ jobs:
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY="" \
             AD_HOC_CODE_SIGNING_ALLOWED=YES \
-            VALIDATE_PRODUCT=NO
+            VALIDATE_PRODUCT=NO \
+            2>&1 | tee ../build-archive.log
+
+      - name: Print Errors on Failure
+        if: failure()
+        run: |
+          echo "=== XCODEBUILD FAILED COMMANDS ==="
+          grep -E "The following build commands failed|error:" build-archive.log | tail -n 50 || true
+          echo "=== LAST 150 LINES OF LOG ==="
+          tail -n 150 build-archive.log
+
+      - name: Upload Build Log on Failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-failure-log
+          path: build-archive.log
 
       - name: Package IPA
         run: |
