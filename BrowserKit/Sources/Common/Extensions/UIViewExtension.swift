@@ -148,25 +148,16 @@ extension UIButton.Configuration {
 // MARK: - SwiftUI iOS 26 Glass Button Style & View Modifiers Shims
 import SwiftUI
 
-public struct GlassProminentButtonStyle: PrimitiveButtonStyle, ButtonStyle {
+public struct GlassProminentButtonStyle: PrimitiveButtonStyle {
     public init() {}
-    public func makeBody(configuration: PrimitiveButtonStyle.Configuration) -> some View {
+    public func makeBody(configuration: Configuration) -> some View {
         Button(role: configuration.role, action: configuration.trigger) {
             configuration.label
         }
     }
-    public func makeBody(configuration: ButtonStyle.Configuration) -> some View {
-        configuration.label
-    }
 }
 
 extension PrimitiveButtonStyle where Self == GlassProminentButtonStyle {
-    public static var glassProminent: GlassProminentButtonStyle {
-        return GlassProminentButtonStyle()
-    }
-}
-
-extension ButtonStyle where Self == GlassProminentButtonStyle {
     public static var glassProminent: GlassProminentButtonStyle {
         return GlassProminentButtonStyle()
     }
