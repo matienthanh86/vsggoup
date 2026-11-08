@@ -7,7 +7,6 @@ on:
 
 env:
   browser: firefox-ios
-  xcode_version: "16.2"
   xcodebuild_scheme: Fennec
 
 jobs:
@@ -18,16 +17,28 @@ jobs:
       - name: Check out source code
         uses: actions/checkout@v4
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
       - name: Setup Xcode
         id: xcode
         run: |
-          sudo rm -rf /Applications/Xcode.app
-          sudo xcode-select -s /Applications/Xcode_${{ env.xcode_version }}.app/Contents/Developer
+          echo "Available Xcode versions:"
+          ls -d /Applications/Xcode* || true
+          TARGET_XCODE=$(ls -d /Applications/Xcode_16*.app 2>/dev/null | sort -V | tail -n 1)
+          if [ -z "$TARGET_XCODE" ]; then
+            TARGET_XCODE=$(ls -d /Applications/Xcode*.app 2>/dev/null | sort -V | tail -n 1)
+          fi
+          if [ -n "$TARGET_XCODE" ]; then
+            echo "Selected Xcode: $TARGET_XCODE"
+            sudo xcode-select -s "$TARGET_XCODE/Contents/Developer"
+          fi
           xcodebuild -version
 
       - name: Run Bootstrap
         run: |
-          ./bootstrap.sh focus
           ./bootstrap.sh firefox --force
 
       - name: Resolve SPM Dependencies
@@ -68,4 +79,3 @@ jobs:
           name: VSG-Group-iOS-IPA
           path: build/VSG-Group.ipa
           retention-days: 14
-
