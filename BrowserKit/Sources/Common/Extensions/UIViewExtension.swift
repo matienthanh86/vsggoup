@@ -89,3 +89,44 @@ extension UIView {
         layer.cornerRadius = UIScreen.main.value(forKey: "_displayCornerRadius") as? CGFloat ?? 0
     }
 }
+
+// MARK: - iOS 26+ Compatibility Shims for Compiling on Xcode <= 16 / iOS <= 18 SDKs
+#if compiler(<6.4)
+public struct UILayoutGuideRegion: Sendable {
+    public enum CornerAdaptation: Sendable {
+        case horizontal
+    }
+    public static func margins(cornerAdaptation: CornerAdaptation) -> UILayoutGuideRegion {
+        return UILayoutGuideRegion()
+    }
+    public static func bar(onEdge: UIRectEdge, extent: CGFloat) -> UILayoutGuideRegion {
+        return UILayoutGuideRegion()
+    }
+}
+
+extension UIView {
+    @objc public func layoutGuide(for region: UILayoutGuideRegion) -> UILayoutGuide {
+        return safeAreaLayoutGuide
+    }
+}
+
+open class UIGlassEffect: UIVisualEffect, @unchecked Sendable {
+    public enum Style: Sendable {
+        case regular
+    }
+    public var tintColor: UIColor?
+    public var isInteractive: Bool = false
+
+    public override init() {
+        super.init()
+    }
+
+    public required init?(coder: NSCoder) {
+        super.init(coder: coder)
+    }
+
+    public convenience init(style: Style = .regular) {
+        self.init()
+    }
+}
+#endif
