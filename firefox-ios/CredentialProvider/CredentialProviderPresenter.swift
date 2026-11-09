@@ -17,11 +17,11 @@ final class CredentialProviderPresenter {
 
     init(view: CredentialProviderViewProtocol,
          profile: Profile = BrowserProfile(localName: "profile"),
-         appAuthenticator: AppAuthenticator = AppAuthenticator(),
+         appAuthenticator: AppAuthenticator? = nil,
          logger: Logger = DefaultLogger.shared) {
         self.view = view
         self.profile = profile
-        self.appAuthenticator = appAuthenticator
+        self.appAuthenticator = appAuthenticator ?? AppAuthenticator()
         self.logger = logger
     }
 
