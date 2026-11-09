@@ -147,7 +147,7 @@ class PasswordDetailViewController: SensitiveViewController,
             action: #selector(doneEditing)
         )
         doneButton.tintColor = theme.colors.actionPrimary
-        doneButton.accessibilityLabel = .AppSettingsDone
+        doneButton.accessibilityLabel = String.AppSettingsDone
         return doneButton
     }
 

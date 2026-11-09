@@ -153,6 +153,12 @@ extension UIBarButtonItem {
     }
 }
 
+extension UIBarButtonItem.Style {
+    public static var prominent: UIBarButtonItem.Style {
+        return .done
+    }
+}
+
 // MARK: - SwiftUI iOS 26 Glass Button Style & View Modifiers Shims
 import SwiftUI
 
