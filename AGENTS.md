@@ -50,3 +50,11 @@ GitHub ticket number can be found at the bottom of the JIRA ticket.
 - Push Notification Provider: Uses Apple Push Notification service (APNs) provider `apns` with device push address.
 - Git Push & Remote Operations: NEVER run `git push` automatically. Always provide the exact command line for the user to push code themselves.
 - Domain & Policy Compliance: Ensure all user-facing documentation, support, privacy, and terms links route to `https://vsg.top` and keep Mozilla Accounts / Sync hidden from UI.
+
+## Language & Communication
+- **Ngôn ngữ:** Luôn luôn trả lời, giải thích và giao tiếp với người dùng bằng **Tiếng Việt**. Giữ nguyên các thuật ngữ kỹ thuật, tên biến, tên hàm, đường dẫn file và lệnh git/bash bằng tiếng Anh để đảm bảo độ chính xác kỹ thuật.
+
+## Swift Build & Concurrency Guidelines
+- **Swift Version & Concurrency Mode:** Dự án `firefox-ios` và toàn bộ target extensions (`CredentialProvider`, `WidgetKitExtension`, `NotificationService`, `ShareTo`, `Client`) bắt buộc dùng `SWIFT_VERSION = 5.0` và `SWIFT_STRICT_CONCURRENCY = minimal`. Không bật các cờ thử nghiệm Swift 6 upcoming feature (`GLOBAL_CONCURRENCY`, `REGION_BASED_ISOLATION`, v.v.).
+- **@MainActor Default Parameter Isolation:** Không bao giờ gọi hàm khởi tạo bị cô lập trên `@MainActor` làm giá trị tham số mặc định (ví dụ: `appAuthenticator: AppAuthenticator = AppAuthenticator()`). Luôn dùng `param: Type? = nil` và khởi tạo bên trong thân hàm `init` (`self.param = param ?? Type()`).
+- **iOS 26+ SDK Shims:** Với các API SwiftUI/UIKit chỉ có từ iOS 26+ (như `prominentClearGlass`, `UIGlassEffect`, `UIBarButtonItem.Style.prominent`), luôn duy trì shims tương thích trong `BrowserKit/Sources/Common/Extensions/UIViewExtension.swift`.
