@@ -151,6 +151,11 @@ extension UIBarButtonItem {
         get { return false }
         set {}
     }
+
+    public var sharesBackground: Bool {
+        get { return false }
+        set {}
+    }
 }
 
 extension UIBarButtonItem.Style {

@@ -20,7 +20,7 @@ class TabConfigurationProvider {
 
     private let configurationProvider = DefaultWKEngineConfigurationProvider()
     private let profile: Profile
-    private weak let tabManager: TabManager?
+    private weak var tabManager: TabManager?
 
     init(profile: Profile, tabManager: TabManager) {
         self.profile = profile

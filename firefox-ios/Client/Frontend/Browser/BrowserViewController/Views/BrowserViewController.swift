@@ -2332,7 +2332,7 @@ class BrowserViewController: UIViewController,
             present(self)
             // The keyboard and toolbar animations are in flight at this point. Lay the new content out
             // immediately, outside any animation block, so its first frame isn't animated in from the origin.
-            UIView.performWithoutAnimation { view.layoutIfNeeded() }
+            UIView.performWithoutAnimation { self.view.layoutIfNeeded() }
         }
     }
 

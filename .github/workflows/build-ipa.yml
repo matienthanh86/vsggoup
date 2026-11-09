@@ -65,6 +65,7 @@ jobs:
             VALIDATE_PRODUCT=NO \
             SWIFT_VERSION=5.0 \
             SWIFT_STRICT_CONCURRENCY=minimal \
+            SWIFT_UPCOMING_FEATURE_ISOLATED_DEFAULT_VALUES=YES \
             SWIFT_TREAT_WARNINGS_AS_ERRORS=NO \
             GCC_TREAT_WARNINGS_AS_ERRORS=NO \
             2>&1 | tee ../build-archive.log

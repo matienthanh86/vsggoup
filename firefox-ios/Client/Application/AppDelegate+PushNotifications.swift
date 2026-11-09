@@ -74,7 +74,7 @@ extension AppDelegate {
     }
 }
 
-extension AppDelegate: @MainActor UNUserNotificationCenterDelegate {
+extension AppDelegate: UNUserNotificationCenterDelegate {
     // Called when the user taps on a notification while in background.
     func userNotificationCenter(
         _ center: UNUserNotificationCenter,

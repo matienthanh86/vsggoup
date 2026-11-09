@@ -14,6 +14,19 @@ public struct SystemLanguageModel: Sendable {
     public static let `default` = SystemLanguageModel()
     public var isAvailable: Bool { false }
     public init(guardrails: Guardrails = Guardrails()) {}
+
+    public enum Availability: Sendable {
+        case available
+        case unavailable(UnavailableReason = .unknown)
+
+        public enum UnavailableReason: Sendable {
+            case appleIntelligenceNotEnabled
+            case modelNotReady
+            case deviceNotEligible
+            case unknown
+        }
+    }
+    public var availability: Availability { .unavailable(.unknown) }
 }
 
 public struct Prompt: Sendable {

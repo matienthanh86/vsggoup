@@ -64,7 +64,7 @@ final class ReaderModeSchemeHandler: NSObject, WKURLSchemeHandler {
     private let logger: Logger
     private var requestTasks = [ObjectIdentifier: Task<Void, Never>]()
 
-    private weak let tabManager: TabManager?
+    private weak var tabManager: TabManager?
 
     init(profile: Profile,
          logger: Logger = DefaultLogger.shared,

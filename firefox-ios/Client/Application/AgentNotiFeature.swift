@@ -64,11 +64,15 @@ public final class AgentNotiFeature: @unchecked Sendable {
         saveApnsToken(token)
 
         Task {
-            guard let agentId = getSavedAgentId() ?? (try? await apiClient.registerDevice()) else {
+            var agentId = getSavedAgentId()
+            if agentId == nil {
+                agentId = try? await apiClient.registerDevice()
+            }
+            guard let finalAgentId = agentId else {
                 return
             }
-            saveAgentId(agentId)
-            _ = try? await apiClient.registerPushToken(agentId: agentId, pushAddress: token, provider: "apns")
+            saveAgentId(finalAgentId)
+            _ = try? await apiClient.registerPushToken(agentId: finalAgentId, pushAddress: token, provider: "apns")
         }
     }
 
