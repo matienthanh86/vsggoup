@@ -24,7 +24,7 @@ final class SummarizerMiddleware: SummarizerConfigFactory {
     private let windowManager: WindowManager
     private let profile: Profile
 
-    init(
+    nonisolated init(
         logger: Logger = DefaultLogger.shared,
         windowManager: WindowManager = AppContainer.shared.resolve(),
         profile: Profile = AppContainer.shared.resolve(),

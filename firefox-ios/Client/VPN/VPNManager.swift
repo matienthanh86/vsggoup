@@ -32,6 +32,8 @@ protocol ProxyConfigurator {
 
 @available(iOS 17.0, *)
 struct DefaultProxyConfigurator: ProxyConfigurator {
+    nonisolated init() {}
+
     func applyProxyConfigurations(_ configs: [ProxyConfiguration], forcingSessionReset: Bool) {
         DefaultWKEngineConfigurationProvider.applyProxyConfigurations(configs, forcingSessionReset: forcingSessionReset)
     }
