@@ -61,7 +61,7 @@ final class VPNManager: VPNRunnable, UserFeaturePreferenceProvider {
         guardian: VPNGuardianProviding? = nil,
         authCreator: VPNAuthCreating = VPNAuthCreator(telemetry: DefaultVPNTelemetry()),
         serverManager: VPNServerManaging? = nil,
-        proxyApplier: ProxyConfigurator = DefaultProxyConfigurator()
+        proxyApplier: ProxyConfigurator? = nil
     ) {
         self.logger = logger
         self.environment = VPNEnvironment(prefs: profile.prefs)
@@ -71,7 +71,7 @@ final class VPNManager: VPNRunnable, UserFeaturePreferenceProvider {
             logger: logger
         )
         self.windowManager = windowManager
-        self.proxyApplier = proxyApplier
+        self.proxyApplier = proxyApplier ?? DefaultProxyConfigurator()
     }
 
     func start() async {

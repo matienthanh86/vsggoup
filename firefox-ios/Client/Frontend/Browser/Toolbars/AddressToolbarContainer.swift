@@ -176,8 +176,8 @@ final class AddressToolbarContainer: UIView,
     /// and the Cancel button is visible (allowing the user to leave overlay mode).
     var inOverlayMode = false
 
-    init(toolbarHelper: ToolbarHelperInterface = ToolbarHelper()) {
-        self.toolbarHelper = toolbarHelper
+    init(toolbarHelper: ToolbarHelperInterface? = nil) {
+        self.toolbarHelper = toolbarHelper ?? ToolbarHelper()
         super.init(frame: .zero)
 
         #if compiler(>=6.4)

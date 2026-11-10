@@ -43,12 +43,12 @@ final class TabManagerMiddleware: FeatureFlaggable, CanRemoveQuickActionBookmark
          logger: Logger = DefaultLogger.shared,
          windowManager: WindowManager = AppContainer.shared.resolve(),
          summarizerNimbusUtility: SummarizerNimbusUtils = DefaultSummarizerNimbusUtils(),
-         summarizerConfigFactory: SummarizerConfigFactory = SummarizerMiddleware(),
+         summarizerConfigFactory: SummarizerConfigFactory? = nil,
          bookmarksSaver: BookmarksSaver? = nil,
          tabsPanelTelemetry: TabsPanelTelemetryProtocol = TabsPanelTelemetry()
     ) {
         self.summarizerNimbusUtils = summarizerNimbusUtility
-        self.summarizerConfigFactory = summarizerConfigFactory
+        self.summarizerConfigFactory = summarizerConfigFactory ?? SummarizerMiddleware()
         self.profile = profile
         self.bookmarksHandler = profile.places
         self.logger = logger
