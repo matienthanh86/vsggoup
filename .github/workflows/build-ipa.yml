@@ -63,11 +63,11 @@ jobs:
           perl -0777 -pi -e 's/SWIFT_UPCOMING_FEATURE_ISOLATED_DEFAULT_VALUES\s*=\s*YES/SWIFT_UPCOMING_FEATURE_ISOLATED_DEFAULT_VALUES = NO/g' Client.xcodeproj/project.pbxproj 2>/dev/null || true
           find . -name "*.xcconfig" -exec perl -0777 -pi -e 's/-enable-upcoming-feature\s+IsolatedDefaultValues//g' {} + 2>/dev/null || true
 
-          # Ensure nonisolated init() exists for types inheriting @MainActor protocols
-          perl -0777 -pi -e 's/struct DefaultTabTrayUtils: FeatureFlaggable, TabTrayUtils \{/struct DefaultTabTrayUtils: FeatureFlaggable, TabTrayUtils {\n    nonisolated init() {}/g' Client/Frontend/Browser/Tabs/TabTrayUtils.swift 2>/dev/null || true
-          perl -0777 -pi -e 's/struct DefaultProxyConfigurator: ProxyConfigurator \{/struct DefaultProxyConfigurator: ProxyConfigurator {\n    nonisolated init() {}/g' Client/VPN/VPNManager.swift 2>/dev/null || true
-          perl -0777 -pi -e 's/(\s+)init\(\s*\n(\s+logger: Logger = DefaultLogger\.shared,\s*\n\s+windowManager: WindowManager)/$1nonisolated init(\n$2/g' Client/Frontend/Summarizer/SummarizeMiddleware.swift 2>/dev/null || true
-          perl -0777 -pi -e 's/(\s+)init\(\s*\n(\s+userInterfaceIdiom: UIUserInterfaceIdiom)/$1nonisolated init(\n$2/g' Client/Frontend/Browser/Toolbars/ToolbarHelper.swift 2>/dev/null || true
+          # Ensure no duplicated 'nonisolated nonisolated' modifiers exist
+          perl -0777 -pi -e 's/nonisolated\s+nonisolated/nonisolated/g' Client/Frontend/Browser/Toolbars/ToolbarHelper.swift 2>/dev/null || true
+          perl -0777 -pi -e 's/nonisolated\s+nonisolated/nonisolated/g' Client/Frontend/Summarizer/SummarizeMiddleware.swift 2>/dev/null || true
+          perl -0777 -pi -e 's/nonisolated\s+nonisolated/nonisolated/g' Client/Frontend/Browser/Tabs/TabTrayUtils.swift 2>/dev/null || true
+          perl -0777 -pi -e 's/nonisolated\s+nonisolated/nonisolated/g' Client/VPN/VPNManager.swift 2>/dev/null || true
 
           xcodebuild archive \
             -project Client.xcodeproj \
