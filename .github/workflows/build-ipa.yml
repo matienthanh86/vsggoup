@@ -69,6 +69,10 @@ jobs:
           perl -0777 -pi -e 's/nonisolated\s+nonisolated/nonisolated/g' Client/Frontend/Browser/Tabs/TabTrayUtils.swift 2>/dev/null || true
           perl -0777 -pi -e 's/nonisolated\s+nonisolated/nonisolated/g' Client/VPN/VPNManager.swift 2>/dev/null || true
 
+          # Sync all extension Bundle Identifiers with parent app (com.vsg.group.browser)
+          perl -0777 -pi -e 's/org\.mozilla\.ios\.(Firefox|FirefoxBeta|Fennec|FennecEnterprise|Focus)/com.vsg.group.browser/g' Client.xcodeproj/project.pbxproj 2>/dev/null || true
+          find . \( -name "*.xcconfig" -o -name "*.plist" -o -name "*.entitlements" \) -exec perl -0777 -pi -e 's/org\.mozilla\.ios\.(Firefox|FirefoxBeta|Fennec|FennecEnterprise|Focus)/com.vsg.group.browser/g' {} + 2>/dev/null || true
+
           xcodebuild archive \
             -project Client.xcodeproj \
             -scheme ${{ env.xcodebuild_scheme }} \
