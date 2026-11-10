@@ -107,9 +107,8 @@ final class ToolbarHelper: ToolbarHelperInterface, FeatureFlaggable {
         return !isReduceTransparencyEnabled
     }
 
-    @MainActor
-    init(
-        userInterfaceIdiom: UIUserInterfaceIdiom = UIDevice.current.userInterfaceIdiom
+    nonisolated init(
+        userInterfaceIdiom: UIUserInterfaceIdiom = .phone
     ) {
         self.userInterfaceIdiom = userInterfaceIdiom
     }
