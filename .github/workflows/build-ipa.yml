@@ -60,6 +60,7 @@ jobs:
 
           # Strip any remaining IsolatedDefaultValues flags (multi-line or single-line)
           perl -0777 -pi -e 's/"?-enable-upcoming-feature"?\s*,?\s*"?IsolatedDefaultValues"?\s*,?//g' Client.xcodeproj/project.pbxproj 2>/dev/null || true
+          perl -0777 -pi -e 's/SWIFT_UPCOMING_FEATURE_ISOLATED_DEFAULT_VALUES\s*=\s*YES/SWIFT_UPCOMING_FEATURE_ISOLATED_DEFAULT_VALUES = NO/g' Client.xcodeproj/project.pbxproj 2>/dev/null || true
           find . -name "*.xcconfig" -exec perl -0777 -pi -e 's/-enable-upcoming-feature\s+IsolatedDefaultValues//g' {} + 2>/dev/null || true
 
           xcodebuild archive \
@@ -77,6 +78,9 @@ jobs:
             VALIDATE_PRODUCT=NO \
             SWIFT_VERSION=5.0 \
             SWIFT_STRICT_CONCURRENCY=minimal \
+            SWIFT_UPCOMING_FEATURE_ISOLATED_DEFAULT_VALUES=NO \
+            SWIFT_UPCOMING_FEATURE_GLOBAL_CONCURRENCY=NO \
+            SWIFT_UPCOMING_FEATURE_REGION_BASED_ISOLATION=NO \
             SWIFT_COMPILATION_MODE=incremental \
             SWIFT_OPTIMIZATION_LEVEL=-Onone \
             ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS=NO \

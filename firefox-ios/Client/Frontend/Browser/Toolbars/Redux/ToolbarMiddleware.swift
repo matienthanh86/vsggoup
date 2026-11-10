@@ -37,7 +37,7 @@ final class ToolbarMiddleware {
          toolbarTelemetry: ToolbarTelemetry = ToolbarTelemetry(),
          profile: Profile = AppContainer.shared.resolve(),
          summarizerNimbusUtils: SummarizerNimbusUtils = DefaultSummarizerNimbusUtils(),
-         summarizerConfigFactory: SummarizerConfigFactory = SummarizerMiddleware(),
+         summarizerConfigFactory: SummarizerConfigFactory? = nil,
          recentSearchProvider: RecentSearchProvider? = nil,
          featureFlagsProvider: FeatureFlagProviding = AppContainer.shared.resolve(),
          userPreferences: UserFeaturePreferring = AppContainer.shared.resolve(),
@@ -45,7 +45,7 @@ final class ToolbarMiddleware {
          windowManager: WindowManager = AppContainer.shared.resolve(),
          logger: Logger = DefaultLogger.shared) {
         self.summarizerNimbusUtils = summarizerNimbusUtils
-        self.summarizerConfigFactory = summarizerConfigFactory
+        self.summarizerConfigFactory = summarizerConfigFactory ?? SummarizerMiddleware()
         self.featureFlagsProvider = featureFlagsProvider
         self.userPreferences = userPreferences
         self.searchEnginesManager = searchEnginesManager

@@ -28,11 +28,11 @@ final class TabTrayCoordinator: BaseCoordinator,
          tabTraySection: TabTrayPanelType,
          profile: Profile,
          tabManager: TabManager,
-         tabTrayUtils: TabTrayUtils = DefaultTabTrayUtils()
+         tabTrayUtils: TabTrayUtils? = nil
     ) {
         self.profile = profile
         self.tabManager = tabManager
-        self.tabTrayUtils = tabTrayUtils
+        self.tabTrayUtils = tabTrayUtils ?? DefaultTabTrayUtils()
         super.init(router: router)
         initializeTabTrayViewController(panelType: tabTraySection)
     }
