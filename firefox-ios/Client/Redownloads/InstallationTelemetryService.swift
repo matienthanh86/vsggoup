@@ -31,16 +31,16 @@ final class InstallationTelemetryService {
     init(
         profilePrefs: Prefs,
         installationPrefs: Prefs = NSUserDefaultsPrefs(prefix: "installationTelemetry", userDefaults: .standard),
-        history: InstallationHistoryStoring = InstallationHistoryStore(),
-        acquisition: AppAcquisitionProviding = StoreKitAppAcquisitionProvider(),
+        history: InstallationHistoryStoring? = nil,
+        acquisition: AppAcquisitionProviding? = nil,
         telemetry: InstallationTelemetry = InstallationTelemetry(),
         featureFlagsProvider: FeatureFlagProviding = AppContainer.shared.resolve(),
         dateProvider: DateProvider = SystemDateProvider(),
         logger: Logger = DefaultLogger.shared
     ) {
         self.installationPrefs = installationPrefs
-        self.history = history
-        self.acquisition = acquisition
+        self.history = history ?? InstallationHistoryStore()
+        self.acquisition = acquisition ?? StoreKitAppAcquisitionProvider()
         self.telemetry = telemetry
         self.profilePrefs = profilePrefs
         self.featureFlagsProvider = featureFlagsProvider

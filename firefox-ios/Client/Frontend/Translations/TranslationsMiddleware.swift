@@ -45,7 +45,7 @@ final class TranslationsMiddleware: FeatureFlaggable, Notifiable {
     init(profile: Profile = AppContainer.shared.resolve(),
          logger: Logger = DefaultLogger.shared,
          windowManager: WindowManager = AppContainer.shared.resolve(),
-         translationsService: TranslationsServiceProtocol = TranslationsService(),
+         translationsService: TranslationsServiceProtocol? = nil,
          translationsTelemetry: TranslationsTelemetryProtocol = TranslationsTelemetry(),
          manager: PreferredTranslationLanguagesManager? = nil,
          localeProvider: LocaleProvider = SystemLocaleProvider(),
@@ -54,7 +54,7 @@ final class TranslationsMiddleware: FeatureFlaggable, Notifiable {
         self.profile = profile
         self.logger = logger
         self.windowManager = windowManager
-        self.translationsService = translationsService
+        self.translationsService = translationsService ?? TranslationsService()
         self.translationsTelemetry = translationsTelemetry
         self.manager = manager ?? PreferredTranslationLanguagesManager(prefs: profile.prefs)
         self.localeProvider = localeProvider

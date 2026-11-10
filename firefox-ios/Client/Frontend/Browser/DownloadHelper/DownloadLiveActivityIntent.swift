@@ -6,6 +6,7 @@ import Foundation
 import AppIntents
 import Common
 
+#if !MOZ_TARGET_CLIENT
 @available(iOS 17.0, *)
 struct DownloadLiveActivityIntent: LiveActivityIntent {
     static let title: LocalizedStringResource = "Stop Downloads"
@@ -21,3 +22,8 @@ struct DownloadLiveActivityIntent: LiveActivityIntent {
         return .result()
     }
 }
+#else
+struct DownloadLiveActivityIntent {
+    var windowUUID: String = ""
+}
+#endif

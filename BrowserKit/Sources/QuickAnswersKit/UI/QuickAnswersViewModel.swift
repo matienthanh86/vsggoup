@@ -50,9 +50,7 @@ final class QuickAnswersViewModel {
         prefs: Prefs,
         telemetry: QuickAnswersTelemetry,
         configFetcher: QuickAnswersConfigFetcher?,
-        makeService: @MainActor (Prefs, QuickAnswersConfigFetcher) throws -> QuickAnswersService = { prefs, configFetcher in
-            try DefaultQuickAnswersService(configFetcher: configFetcher, prefs: prefs)
-        }
+        makeService: (@MainActor (Prefs, QuickAnswersConfigFetcher) throws -> QuickAnswersService)? = nil
     ) {
         let configFetcher = configFetcher ?? DefaultQuickAnswersConfigFetcher(
             feature: QuickAnswersFeature(model: .exa, isOptInRedesignEnabled: false)
@@ -60,8 +58,11 @@ final class QuickAnswersViewModel {
         self.telemetry = telemetry
         self.store = Store(prefs: prefs)
         self.feature = configFetcher.feature
+        let serviceFactory = makeService ?? { prefs, configFetcher in
+            try DefaultQuickAnswersService(configFetcher: configFetcher, prefs: prefs)
+        }
         do {
-            self.service = try makeService(prefs, configFetcher)
+            self.service = try serviceFactory(prefs, configFetcher)
         } catch {
             self.service = nil
         }

@@ -37,9 +37,9 @@ jobs:
             # Bypass iOS 15 deployment target App Intents training bug (Unable to parse extract.actionsdata)
             for proc in $(find "$TARGET_XCODE" -name "appintentsnltrainingprocessor" 2>/dev/null); do
               echo "Stubbing $proc"
-              sudo cp "$proc" "${proc}.orig" || true
-              sudo bash -c "echo '#!/bin/sh' > '$proc' && echo 'exit 0' >> '$proc'"
-              sudo chmod +x "$proc"
+              sudo rm -f "$proc"
+              printf '#!/bin/sh\nexit 0\n' | sudo tee "$proc" > /dev/null
+              sudo chmod 755 "$proc"
             done
           fi
           xcodebuild -version
@@ -72,7 +72,6 @@ jobs:
             VALIDATE_PRODUCT=NO \
             SWIFT_VERSION=5.0 \
             SWIFT_STRICT_CONCURRENCY=minimal \
-            SWIFT_UPCOMING_FEATURE_ISOLATED_DEFAULT_VALUES=YES \
             ENABLE_APPINTENTS_DEPLOYMENT_AWARE_PROCESSING=NO \
             SWIFT_TREAT_WARNINGS_AS_ERRORS=NO \
             GCC_TREAT_WARNINGS_AS_ERRORS=NO \

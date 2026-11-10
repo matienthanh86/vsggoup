@@ -85,7 +85,7 @@ final class AddressListViewModel: ObservableObject, FeatureFlaggable {
         logger: Logger = DefaultLogger.shared,
         windowUUID: WindowUUID,
         addressProvider: AddressProvider,
-        editAddressWebViewManager: WebViewPreloadManaging = EditAddressWebViewManager(),
+        editAddressWebViewManager: WebViewPreloadManaging? = nil,
         themeManager: ThemeManager = AppContainer.shared.resolve(),
         profile: Profile = AppContainer.shared.resolve(),
         localeProvider: LocaleProvider = SystemLocaleProvider()
@@ -93,7 +93,7 @@ final class AddressListViewModel: ObservableObject, FeatureFlaggable {
         self.logger = logger
         self.windowUUID = windowUUID
         self.addressProvider = addressProvider
-        self.editAddressWebViewManager = editAddressWebViewManager
+        self.editAddressWebViewManager = editAddressWebViewManager ?? EditAddressWebViewManager()
         self.themeManager = themeManager
         self.profile = profile
         self.currentRegionCode = localeProvider.regionCode(fallback: "")

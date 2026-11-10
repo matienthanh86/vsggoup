@@ -487,7 +487,7 @@ class BrowserViewController: UIViewController,
         logger: Logger = DefaultLogger.shared,
         summarizerNimbusUtils: SummarizerNimbusUtils = DefaultSummarizerNimbusUtils(),
         documentLogger: DocumentLogger = AppContainer.shared.resolve(),
-        appAuthenticator: AppAuthenticationProtocol = AppAuthenticator(),
+        appAuthenticator: AppAuthenticationProtocol? = nil,
         searchEnginesManager: SearchEnginesManager = AppContainer.shared.resolve(),
         userInitiatedQueue: DispatchQueueInterface = DispatchQueue.global(qos: .userInitiated),
         recordVisitManager: RecordVisitObserving? = nil
@@ -504,7 +504,7 @@ class BrowserViewController: UIViewController,
         self.appStartupTelemetry = appStartupTelemetry
         self.logger = logger
         self.documentLogger = documentLogger
-        self.appAuthenticator = appAuthenticator
+        self.appAuthenticator = appAuthenticator ?? AppAuthenticator()
         self.searchEnginesManager = searchEnginesManager
         self.googleLensTelemetry = GoogleLensTelemetry(gleanWrapper: gleanWrapper)
         self.contextMenuTelemetry = ContextMenuTelemetry(gleanWrapper: gleanWrapper)

@@ -19,13 +19,13 @@ final class TranslationsService: TranslationsServiceProtocol {
         windowManager: WindowManager = AppContainer.shared.resolve(),
         languageDetector: LanguageDetectorProvider = LanguageDetector(),
         modelsFetcher: TranslationModelsFetcherProtocol = ASTranslationModelsFetcher.shared,
-        translationsEngine: TranslationsEngine = TranslationsEngine(),
+        translationsEngine: TranslationsEngine? = nil,
         logger: Logger = DefaultLogger.shared
     ) {
         self.windowManager = windowManager
         self.languageDetector = languageDetector
         self.modelsFetcher = modelsFetcher
-        self.translationsEngine = translationsEngine
+        self.translationsEngine = translationsEngine ?? TranslationsEngine()
         self.logger = logger
     }
 

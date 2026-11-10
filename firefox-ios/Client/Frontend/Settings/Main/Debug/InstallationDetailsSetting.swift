@@ -12,11 +12,11 @@ final class InstallationDetailsSetting: HiddenSetting {
     private let installationPrefs: Prefs
 
     init(settings: SettingsTableViewController,
-         historyStore: InstallationHistoryStoring = InstallationHistoryStore(),
-         acquisition: AppAcquisitionProviding = StoreKitAppAcquisitionProvider(),
+         historyStore: InstallationHistoryStoring? = nil,
+         acquisition: AppAcquisitionProviding? = nil,
          installationPrefs: Prefs = NSUserDefaultsPrefs(prefix: "installationTelemetry", userDefaults: .standard)) {
-        self.historyStore = historyStore
-        self.acquisition = acquisition
+        self.historyStore = historyStore ?? InstallationHistoryStore()
+        self.acquisition = acquisition ?? StoreKitAppAcquisitionProvider()
         self.installationPrefs = installationPrefs
         super.init(settings: settings)
     }

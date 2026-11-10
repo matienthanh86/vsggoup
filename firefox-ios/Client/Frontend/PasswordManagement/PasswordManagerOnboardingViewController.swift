@@ -50,8 +50,8 @@ class PasswordManagerOnboardingViewController: SettingsViewController {
     init(profile: Profile? = nil,
          tabManager: TabManager? = nil,
          windowUUID: WindowUUID,
-         appAuthenticator: AppAuthenticationProtocol = AppAuthenticator()) {
-        self.appAuthenticator = appAuthenticator
+         appAuthenticator: AppAuthenticationProtocol? = nil) {
+        self.appAuthenticator = appAuthenticator ?? AppAuthenticator()
         super.init(windowUUID: windowUUID, profile: profile, tabManager: tabManager)
     }
 

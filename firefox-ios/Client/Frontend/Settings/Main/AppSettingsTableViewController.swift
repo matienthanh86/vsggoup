@@ -91,7 +91,7 @@ class AppSettingsTableViewController: SettingsTableViewController,
         settingsDelegate: SettingsDelegate,
         parentCoordinator: SettingsFlowDelegate,
         gleanUsageReportingMetricsService: GleanUsageReportingMetricsService,
-        appAuthenticator: AppAuthenticationProtocol = AppAuthenticator(),
+        appAuthenticator: AppAuthenticationProtocol? = nil,
         applicationHelper: ApplicationHelper = DefaultApplicationHelper(),
         summarizerNimbusUtils: SummarizerNimbusUtils = DefaultSummarizerNimbusUtils(),
         logger: Logger = DefaultLogger.shared,
@@ -99,7 +99,7 @@ class AppSettingsTableViewController: SettingsTableViewController,
         installationTelemetryService: InstallationTelemetryService = AppContainer.shared.resolve()
     ) {
         self.summarizerNimbusUtils = summarizerNimbusUtils
-        self.appAuthenticator = appAuthenticator
+        self.appAuthenticator = appAuthenticator ?? AppAuthenticator()
         self.applicationHelper = applicationHelper
         self.logger = logger
         self.gleanUsageReportingMetricsService = gleanUsageReportingMetricsService

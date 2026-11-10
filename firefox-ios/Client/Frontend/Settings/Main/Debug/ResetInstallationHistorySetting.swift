@@ -16,9 +16,9 @@ final class ResetInstallationHistorySetting: HiddenSetting {
     private let installationPrefs: Prefs
 
     init(settings: SettingsTableViewController,
-         historyStore: InstallationHistoryStoring = InstallationHistoryStore(),
+         historyStore: InstallationHistoryStoring? = nil,
          installationPrefs: Prefs = NSUserDefaultsPrefs(prefix: "installationTelemetry", userDefaults: .standard)) {
-        self.historyStore = historyStore
+        self.historyStore = historyStore ?? InstallationHistoryStore()
         self.installationPrefs = installationPrefs
         super.init(settings: settings)
     }
