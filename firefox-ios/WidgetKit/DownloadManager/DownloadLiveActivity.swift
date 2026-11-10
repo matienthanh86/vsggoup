@@ -152,7 +152,7 @@ struct DownloadLiveActivity: Widget {
         }
 
         var body: some View {
-            let intent = DownloadLiveActivityIntent()
+            var intent = DownloadLiveActivityIntent()
             intent.windowUUID = liveDownload.attributes.windowUUID
             return ZStack {
                 Rectangle()
@@ -288,7 +288,7 @@ struct DownloadLiveActivity: Widget {
         let circleProgressPercentage = min(
             liveDownload.state.containsOnlyEncodedFiles ? 1.0 : liveDownload.state.totalProgress, 1.0
         )
-        let intent = DownloadLiveActivityIntent()
+        var intent = DownloadLiveActivityIntent()
         intent.windowUUID = liveDownload.attributes.windowUUID
         return DynamicIslandExpandedRegion(.trailing) {
             Button(intent: intent) {

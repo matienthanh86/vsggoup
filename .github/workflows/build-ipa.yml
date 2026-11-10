@@ -72,20 +72,19 @@ jobs:
             VALIDATE_PRODUCT=NO \
             SWIFT_VERSION=5.0 \
             SWIFT_STRICT_CONCURRENCY=minimal \
-            SWIFT_COMPILATION_MODE=singlefile \
+            SWIFT_COMPILATION_MODE=incremental \
+            SWIFT_OPTIMIZATION_LEVEL=-Onone \
+            ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS=NO \
             COMPILER_INDEX_STORE_ENABLE=NO \
             ENABLE_APPINTENTS_DEPLOYMENT_AWARE_PROCESSING=NO \
             SWIFT_TREAT_WARNINGS_AS_ERRORS=NO \
             GCC_TREAT_WARNINGS_AS_ERRORS=NO \
-            2>&1 | tee ../build-archive.log
+            2>&1 | tee "$RUNNER_TEMP/build-archive.log"
 
       - name: Print Xcode Build Errors
         if: failure()
         run: |
-          LOG_FILE="build-archive.log"
-          if [ ! -f "$LOG_FILE" ]; then
-            LOG_FILE=$(find . -name "build-archive.log" 2>/dev/null | head -n 1)
-          fi
+          LOG_FILE="$RUNNER_TEMP/build-archive.log"
           echo "Using log file: $LOG_FILE"
           echo "=== FAILED BUILD COMMANDS ==="
           grep -C 3 -E "The following build commands failed:" "$LOG_FILE" || true
@@ -101,7 +100,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: build-failure-log
-          path: build-archive.log
+          path: ${{ runner.temp }}/build-archive.log
 
       - name: Package IPA
         run: |

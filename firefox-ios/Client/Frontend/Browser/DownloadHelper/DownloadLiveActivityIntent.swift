@@ -6,13 +6,20 @@ import Foundation
 import AppIntents
 import Common
 
-#if !MOZ_TARGET_CLIENT
 @available(iOS 17.0, *)
 struct DownloadLiveActivityIntent: LiveActivityIntent {
     static let title: LocalizedStringResource = "Stop Downloads"
 
     @Parameter(title: "WindowUUID")
     var windowUUID: String
+
+    init() {
+        self.windowUUID = ""
+    }
+
+    init(windowUUID: String) {
+        self.windowUUID = windowUUID
+    }
 
     func perform() async throws -> some IntentResult {
         NotificationCenter.default.post(name: Notification.Name.StopDownloads,
@@ -22,8 +29,3 @@ struct DownloadLiveActivityIntent: LiveActivityIntent {
         return .result()
     }
 }
-#else
-struct DownloadLiveActivityIntent {
-    var windowUUID: String = ""
-}
-#endif
