@@ -52,7 +52,7 @@ extension AppDelegate {
         NotificationCenter.default.addObserver(
             forName: .constellationStateUpdate,
             object: nil,
-            queue: nil
+            queue: .main
         ) { [profile] notification in
             guard let newState = notification.userInfo?["newState"] as? ConstellationState else { return }
             let remoteDevicesCount = newState.remoteDevices.count
@@ -78,8 +78,10 @@ extension AppDelegate: UNUserNotificationCenterDelegate {
     // Called when the user taps on a notification while in background.
     func userNotificationCenter(
         _ center: UNUserNotificationCenter,
-        didReceive response: UNNotificationResponse
-    ) async {
+        didReceive response: UNNotificationResponse,
+        withCompletionHandler completionHandler: @escaping () -> Void
+    ) {
+        defer { completionHandler() }
         let content = response.notification.request.content
 
         if content.categoryIdentifier == NotificationSurfaceManager.Constant.notificationCategoryId {
@@ -111,23 +113,25 @@ extension AppDelegate: UNUserNotificationCenterDelegate {
     // Called when the user receives a tab (or any other notification) while in foreground.
     func userNotificationCenter(
         _ center: UNUserNotificationCenter,
-        willPresent notification: UNNotification
-    ) async -> UNNotificationPresentationOptions {
+        willPresent notification: UNNotification,
+        withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
+    ) {
         if notification.request.content.userInfo["eventType"] != nil ||
             notification.request.content.userInfo["callId"] != nil ||
             notification.request.content.userInfo["roomToken"] != nil {
             AgentNotiFeature.shared.handleIncomingNotification(userInfo: notification.request.content.userInfo)
-            return [.list, .banner, .sound]
+            completionHandler([.list, .banner, .sound])
+            return
         }
 
         if profile.prefs.boolForKey(PendingAccountDisconnectedKey) ?? false {
             profile.removeAccount()
 
             // show the notification
-            return [.list, .banner, .sound]
+            completionHandler([.list, .banner, .sound])
         } else {
             profile.pollCommands(forcePoll: true)
-            return []
+            completionHandler([])
         }
     }
 }

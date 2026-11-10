@@ -72,18 +72,22 @@ jobs:
             VALIDATE_PRODUCT=NO \
             SWIFT_VERSION=5.0 \
             SWIFT_STRICT_CONCURRENCY=minimal \
+            SWIFT_COMPILATION_MODE=singlefile \
+            COMPILER_INDEX_STORE_ENABLE=NO \
             ENABLE_APPINTENTS_DEPLOYMENT_AWARE_PROCESSING=NO \
             SWIFT_TREAT_WARNINGS_AS_ERRORS=NO \
             GCC_TREAT_WARNINGS_AS_ERRORS=NO \
             2>&1 | tee ../build-archive.log
 
-      - name: Print Errors on Failure
+      - name: Print Xcode Build Errors
         if: failure()
         run: |
-          echo "=== XCODEBUILD FAILED COMMANDS ==="
-          grep -E "The following build commands failed|error:" build-archive.log | tail -n 50 || true
-          echo "=== LAST 150 LINES OF LOG ==="
-          tail -n 150 build-archive.log
+          echo "=== SWIFT COMPILER CRASH / STACK DUMP ==="
+          grep -B 25 -A 35 -E "Stack dump:|While evaluating request|While silgen|Assertion failed|Segmentation fault|Abort trap" ../build-archive.log || true
+          echo "=== SWIFT & CLANG ERRORS ==="
+          grep -C 5 -E "\.swift:[0-9]+:[0-9]+: error:|fatal error:|ld: |clang: error:|Command SwiftCompile failed" ../build-archive.log | tail -n 120 || true
+          echo "=== LAST 300 LINES OF LOG ==="
+          tail -n 300 ../build-archive.log
 
       - name: Upload Build Log on Failure
         if: failure()

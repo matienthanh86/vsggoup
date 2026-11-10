@@ -19,9 +19,10 @@ public final class AgentNotiApiClient: @unchecked Sendable {
     }
 
     public func registerDevice(savedAgentId: String? = nil, platform: String = "ios") async throws -> String {
-        let deviceName = UIDevice.current.name
+        let (deviceName, deviceType) = await MainActor.run {
+            (UIDevice.current.name, UIDevice.current.userInterfaceIdiom == .pad ? "tablet" : "phone")
+        }
         let appVersion = AppInfo.appVersion
-        let deviceType = UIDevice.current.userInterfaceIdiom == .pad ? "tablet" : "phone"
 
         var body: [String: Any] = [
             "deviceName": deviceName,

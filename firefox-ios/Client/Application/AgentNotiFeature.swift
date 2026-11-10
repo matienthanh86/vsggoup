@@ -27,8 +27,8 @@ public final class AgentNotiFeature: @unchecked Sendable {
     private var lastConnectAttemptTime: TimeInterval = 0
     private var lastAttemptedTicket: String?
 
-    public init(apiClient: AgentNotiApiClient = AgentNotiApiClient()) {
-        self.apiClient = apiClient
+    public init(apiClient: AgentNotiApiClient? = nil) {
+        self.apiClient = apiClient ?? AgentNotiApiClient()
     }
 
     public func start() {
@@ -285,6 +285,7 @@ public final class AgentNotiFeature: @unchecked Sendable {
         }
     }
 
+    @MainActor
     private func presentIncomingCallScreen(caller: String, callUrl: String, callKey: String) {
         guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
               let rootVC = windowScene.windows.first(where: { $0.isKeyWindow })?.rootViewController else {
