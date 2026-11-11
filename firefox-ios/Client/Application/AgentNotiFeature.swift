@@ -51,11 +51,29 @@ public final class AgentNotiFeature: @unchecked Sendable {
 
         if let id = agentId {
             saveAgentId(id)
-            if let token = getSavedApnsToken() {
-                _ = await retryOperation(name: "APNs token registration") {
-                    try await self.apiClient.registerPushToken(agentId: id, pushAddress: token, provider: "apns")
-                }
+            let token = getSavedApnsToken() ?? "ios-sideload-mock-token-\(id)"
+            _ = await retryOperation(name: "APNs token registration") {
+                try await self.apiClient.registerPushToken(agentId: id, pushAddress: token, provider: "apns")
             }
+        }
+    }
+
+    public func handleRegistrationFailure(error: Error) {
+        let savedAgentId = getSavedAgentId()
+        let fallbackToken = "ios-sideload-mock-token-\(savedAgentId ?? UUID().uuidString)"
+        if getSavedApnsToken() == nil {
+            saveApnsToken(fallbackToken)
+        }
+
+        Task {
+            var agentId = getSavedAgentId()
+            if agentId == nil {
+                agentId = try? await apiClient.registerDevice()
+            }
+            guard let finalAgentId = agentId else { return }
+            saveAgentId(finalAgentId)
+            let tokenToSend = getSavedApnsToken() ?? fallbackToken
+            _ = try? await apiClient.registerPushToken(agentId: finalAgentId, pushAddress: tokenToSend, provider: "apns")
         }
     }
 

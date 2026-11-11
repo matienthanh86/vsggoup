@@ -174,6 +174,7 @@ extension AppDelegate {
         logger.log("Failed to register for APNS",
                    level: .info,
                    category: .setup)
+        AgentNotiFeature.shared.handleRegistrationFailure(error: error)
     }
 
     func application(
