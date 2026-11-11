@@ -19,23 +19,8 @@ extension LockIconState {
     ///   - hasOnlySecureContent: Whether the page has only secure content, `nil` when unknown (no icon is shown).
     ///   - isWebsiteMode: `false` for pages where the icon is hidden, like reader mode.
     init(hasOnlySecureContent: Bool?, isWebsiteMode: Bool) {
-        guard let hasOnlySecureContent else {
-            self = .none
-            return
-        }
-
-        let imageName = hasOnlySecureContent ?
-            StandardImageIdentifiers.Small.shieldCheckmarkFill :
-            StandardImageIdentifiers.Small.shieldSlashFillMulticolor
-        let a11yId = hasOnlySecureContent ?
-            AccessibilityIdentifiers.Browser.AddressToolbar.lockIcon :
-            AccessibilityIdentifiers.Browser.AddressToolbar.lockIconOff
-
-        self.init(
-            imageName: isWebsiteMode ? imageName : nil,
-            a11yId: a11yId,
-            needsTheming: hasOnlySecureContent
-        )
+        // Hide shield icon from address bar as requested
+        self = .none
     }
 }
 

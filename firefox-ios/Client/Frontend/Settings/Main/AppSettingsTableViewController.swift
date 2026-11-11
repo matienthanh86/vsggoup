@@ -375,7 +375,8 @@ class AppSettingsTableViewController: SettingsTableViewController,
             )
         }
 
-        // For users whose devices support alternate app icons, add the App Icon setting
+        // App Icon setting is disabled to match Android Fenix single icon
+        /*
         if UIApplication.shared.supportsAlternateIcons {
             generalSettings.append(
                 AppIconSetting(
@@ -384,6 +385,7 @@ class AppSettingsTableViewController: SettingsTableViewController,
                 )
             )
         }
+        */
 
         if summarizerNimbusUtils.isSummarizeFeatureEnabled {
             generalSettings.append(SummarizeSetting(settings: self, settingsDelegate: parentCoordinator))
@@ -455,10 +457,7 @@ class AppSettingsTableViewController: SettingsTableViewController,
     }
 
     private func getSupportSettings() -> [SettingSection] {
-        var supportSettings = [
-            ShowIntroductionSetting(settings: self, settingsDelegate: self),
-            SendFeedbackSetting(settingsDelegate: parentCoordinator),
-        ]
+        var supportSettings: [Setting] = []
 
         // Only add this toggle to the Settings if Sent from Firefox feature flag is enabled from Nimbus
         if featureFlagsProvider.isEnabled(.sentFromFirefox), let profile {

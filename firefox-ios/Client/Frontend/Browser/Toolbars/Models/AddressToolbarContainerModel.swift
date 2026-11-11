@@ -155,16 +155,6 @@ final class AddressToolbarContainerModel: Equatable {
         var lockIconImageName: String?
         var lockIconNeedsTheming = true
 
-        let hasSecureContent = tab?.webView?.hasOnlySecureContent == true
-        let isWebsiteMode = tab?.url?.isReaderModeURL == false
-
-        if isWebsiteMode {
-            lockIconImageName = hasSecureContent ?
-                StandardImageIdentifiers.Small.shieldCheckmarkFill :
-                StandardImageIdentifiers.Small.shieldSlashFillMulticolor
-            lockIconNeedsTheming = hasSecureContent
-        }
-
         let urlSearchTerm = searchTermFromURL(url)
         let locationViewConfiguration = LocationViewConfiguration(
             searchEngineImageViewA11yId: "",
