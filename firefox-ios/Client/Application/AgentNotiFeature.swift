@@ -285,6 +285,28 @@ public final class AgentNotiFeature: @unchecked Sendable {
         }
     }
 
+    public func triggerTestNotification(isCall: Bool = false) {
+        if isCall {
+            let mockCallPayload: [AnyHashable: Any] = [
+                "eventType": "call",
+                "callId": "test_call_\(Int(Date().timeIntervalSince1970))",
+                "callerName": "DINO Support",
+                "title": "Cuộc gọi từ DINO Support",
+                "body": "Cuộc gọi đến từ hệ thống...",
+                "targetUrl": "https://dev.dino.top"
+            ]
+            handleIncomingNotification(userInfo: mockCallPayload)
+        } else {
+            let mockMessagePayload: [AnyHashable: Any] = [
+                "eventType": "message",
+                "title": "DINO Platform",
+                "body": "Xin chào! Bạn có 1 thông báo mới từ hệ thống VSG Group.",
+                "targetUrl": "https://dev.dino.top"
+            ]
+            handleIncomingNotification(userInfo: mockMessagePayload)
+        }
+    }
+
     @MainActor
     private func presentIncomingCallScreen(caller: String, callUrl: String, callKey: String) {
         guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,

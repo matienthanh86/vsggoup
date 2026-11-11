@@ -187,7 +187,10 @@ class SceneDelegate: UIResponder,
             let action = components?.queryItems?.first(where: { $0.name.lowercased() == "action" })?.value?.lowercased() ?? ""
             let isLogout = host == "logout" || path.contains("logout") || action == "logout"
 
-            if isLogout {
+            if host == "test" || path.contains("test") || action == "test" {
+                let isCall = components?.queryItems?.first(where: { $0.name.lowercased() == "type" })?.value?.lowercased() == "call"
+                AgentNotiFeature.shared.triggerTestNotification(isCall: isCall)
+            } else if isLogout {
                 let appId = components?.queryItems?.first(where: { $0.name == "appId" })?.value ?? "dino"
                 AgentNotiFeature.shared.logout(appId: appId)
             } else {
