@@ -29,8 +29,7 @@ struct TermsOfServiceManager: FeatureFlaggable, Sendable {
     }
 
     var shouldShowScreen: Bool {
-        guard featureFlagsProvider.isEnabled(.tosFeature) else { return false }
-        return prefs.boolForKey(PrefsKeys.TermsOfUseAccepted) == nil
+        return false
     }
 
     func setAccepted(acceptedDate: Date) {

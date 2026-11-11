@@ -21,7 +21,7 @@ struct IntroScreenManager: FeatureFlaggable, IntroScreenManagerProtocol {
     var prefs: Prefs
 
     var shouldShowIntroScreen: Bool {
-        prefs.intForKey(PrefsKeys.IntroSeen) == nil
+        return false
     }
 
     func didSeeIntroScreen() {
