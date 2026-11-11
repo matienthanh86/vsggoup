@@ -14,7 +14,7 @@ class SendFeedbackSetting: Setting {
     }
 
     override var url: URL? {
-        return URL(string: "https://connect.mozilla.org/")
+        return URL(string: "https://vsg.top")
     }
 
     override var accessibilityIdentifier: String? {

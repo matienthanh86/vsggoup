@@ -9,8 +9,8 @@ import MozillaAppServices
 import OnboardingKit
 
 enum Links {
-    static let termsOfService = "https://www.mozilla.org/about/legal/terms/firefox/"
-    static let privacyNotice = "https://www.mozilla.org/privacy/firefox/"
+    static let termsOfService = "https://vsg.top/terms"
+    static let privacyNotice = "https://vsg.top/privacy"
 }
 
 struct TermsOfServiceManager: FeatureFlaggable, Sendable {

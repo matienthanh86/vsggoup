@@ -329,7 +329,7 @@
 "Facebook" = "Facebook";
 
 /* Title for firefox about:home page in tab history list */
-"Firefox.HomePage.Title" = "Trang chủ Firefox";
+"Firefox.HomePage.Title" = "Trang chủ VSG Group";
 
 /* A button at bottom of the Firefox homepage that, when clicked, takes users straight to the settings options, where they can customize the Firefox Home page */
 "FirefoxHome.CustomizeHomeButton.Title" = "Tùy chỉnh trang chủ";
@@ -1268,7 +1268,7 @@
 "Settings.Home.Current.Description.v101" = "Chọn những gì hiển thị làm trang chủ.";
 
 /* In the settings menu, on the Firefox homepage customization section, this is the description below the section, describing what the options in the section are for. */
-"Settings.Home.Option.Description.v101" = "Chọn những gì được hiển thị trên trang chủ Firefox.";
+"Settings.Home.Option.Description.v101" = "Chọn những gì được hiển thị trên trang chủ VSG Group.";
 
 /* In the settings menu, in the Firefox homepage customization section, this is the title for the option that allows users to toggle the Jump Back In section on homepage on or off */
 "Settings.Home.Option.JumpBackIn" = "Trang đã xem gần đây";
@@ -1400,7 +1400,7 @@
 "Settings.NewTab.Option.Custom" = "Tùy chỉnh";
 
 /* Option in settings to show Firefox Home when you open a new tab */
-"Settings.NewTab.Option.FirefoxHome" = "Trang chủ Firefox";
+"Settings.NewTab.Option.FirefoxHome" = "Trang chủ VSG Group";
 
 /* Option in settings to show your homepage when you open a new tab */
 "Settings.NewTab.Option.HomePage" = "Trang chủ";
