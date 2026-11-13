@@ -119,6 +119,7 @@ jobs:
           path: ${{ runner.temp }}/build-archive.log
 
       - name: Install Apple Certificate
+        id: import_cert
         if: env.BUILD_CERTIFICATE_BASE64 != ''
         uses: apple-actions/import-codesign-certs@v7
         with:
@@ -171,14 +172,28 @@ jobs:
             fi
           done
 
+          # Clean any macOS resource fork dot-files (._*)
+          dot_clean -m "$APP_PATH" 2>/dev/null || true
+
           # If signed provisioning profile was provided, embed it and codesign for App Store
           PP_PATH="$RUNNER_TEMP/build_pp.mobileprovision"
+          KEYCHAIN_PATH="${{ steps.import_cert.outputs.keychain-path }}"
+          if [ -z "$KEYCHAIN_PATH" ]; then
+            KEYCHAIN_PATH=$(security list-keychains -d user | tr -d '" ' | head -n 1)
+          fi
+          echo "Using keychain: $KEYCHAIN_PATH"
+
           if [ -f "$PP_PATH" ]; then
             echo "Embedding App Store Provisioning Profile..."
             cp "$PP_PATH" "$APP_PATH/embedded.mobileprovision"
 
-            # Find Apple Distribution Identity in available keychains
-            SIGNING_IDENTITY=$(security find-identity -v -p codesigning | grep "Apple Distribution:" | head -n 1 | awk -F '"' '{print $2}')
+            # Find Apple Distribution Identity in keychain
+            SIGNING_IDENTITY=$(security find-identity -v -p codesigning "$KEYCHAIN_PATH" | grep "Apple Distribution:" | head -n 1 | awk -F '"' '{print $2}')
+            if [ -z "$SIGNING_IDENTITY" ]; then
+              SIGNING_IDENTITY=$(security find-identity -v -p codesigning | grep "Apple Distribution:" | head -n 1 | awk -F '"' '{print $2}')
+            fi
+            echo "Detected signing identity: '$SIGNING_IDENTITY'"
+
             if [ -n "$SIGNING_IDENTITY" ]; then
               echo "Re-signing app with official identity: $SIGNING_IDENTITY"
               # Extract entitlements from mobileprovision
@@ -186,14 +201,23 @@ jobs:
               /usr/libexec/PlistBuddy -x -c 'Print :Entitlements' "$RUNNER_TEMP/profile.plist" > "$RUNNER_TEMP/entitlements.plist"
 
               # Sign frameworks, plugins, and embedded extensions first
-              find "$APP_PATH" -depth \( -name "*.framework" -o -name "*.dylib" -o -name "*.appex" \) -exec \
-                codesign --force --sign "$SIGNING_IDENTITY" --timestamp=none {} \; 2>/dev/null || true
+              find "$APP_PATH" -depth \( -name "*.framework" -o -name "*.dylib" -o -name "*.appex" \) | while read -r item; do
+                echo "Signing: $item"
+                codesign --force --sign "$SIGNING_IDENTITY" --keychain "$KEYCHAIN_PATH" --timestamp=none "$item" || true
+              done
 
-              # Sign main app bundle
-              codesign --force --sign "$SIGNING_IDENTITY" \
+              # Sign main app bundle with entitlements
+              echo "Signing main app bundle with entitlements..."
+              codesign --force --sign "$SIGNING_IDENTITY" --keychain "$KEYCHAIN_PATH" \
                 --entitlements "$RUNNER_TEMP/entitlements.plist" \
                 --timestamp=none "$APP_PATH"
+
+              echo "Verifying app signature..."
+              codesign -dvvv "$APP_PATH"
+              codesign --verify --deep --strict --verbose=2 "$APP_PATH" || true
               echo "App signed successfully with App Store Distribution Profile!"
+            else
+              echo "WARNING: No Apple Distribution signing identity found!"
             fi
           fi
 
