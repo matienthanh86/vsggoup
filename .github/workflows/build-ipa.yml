@@ -171,6 +171,26 @@ jobs:
           fi
           echo "Found app at: $APP_PATH"
 
+          # Remove Sticker.appex (Mozilla iMessage sticker pack) which causes ITMS-90085 "No architectures in binary"
+          if [ -d "$APP_PATH/PlugIns/Sticker.appex" ]; then
+            echo "Removing Sticker.appex to avoid Transporter 90085 lipo error..."
+            rm -rf "$APP_PATH/PlugIns/Sticker.appex"
+          fi
+
+          # Fix permissions on non-binary files so Transporter/swinfo doesn't treat them as executables
+          find "$APP_PATH" -type f \( -name "*.yaml" -o -name "*.yml" -o -name "*.json" -o -name "*.plist" -o -name "*.png" -o -name "*.car" \) -exec chmod 644 {} +
+
+          # Thin all universal binaries to pure arm64 to guarantee lipo passes cleanly
+          echo "Ensuring all binaries are thin arm64..."
+          find "$APP_PATH" -type f -perm +111 | while read -r bin; do
+            if file "$bin" | grep -q "Mach-O"; then
+              if lipo -info "$bin" | grep -q "Architectures in the fat file"; then
+                echo "Thinning fat binary: $bin"
+                lipo -thin arm64 "$bin" -output "$bin.thin" && mv "$bin.thin" "$bin"
+              fi
+            fi
+          done
+
           # If signed provisioning profile was provided, embed it and codesign for App Store
           PP_PATH="$RUNNER_TEMP/build_pp.mobileprovision"
           KEYCHAIN_PATH="$RUNNER_TEMP/app-signing.keychain-db"
