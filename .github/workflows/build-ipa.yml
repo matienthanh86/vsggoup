@@ -213,7 +213,7 @@ jobs:
               if [ -d "$APP_PATH/Frameworks" ]; then
                 find "$APP_PATH/Frameworks" -depth \( -name "*.framework" -o -name "*.dylib" \) | while read -r item; do
                   echo "Signing: $item"
-                  codesign --force --sign "$SIGNING_IDENTITY" --keychain "$KEYCHAIN_PATH" --timestamp "$item" || true
+                  codesign --force --sign "$SIGNING_IDENTITY" --keychain "$KEYCHAIN_PATH" --timestamp "$item"
                 done
               fi
 
@@ -226,7 +226,7 @@ jobs:
 
               echo "Verifying app signature..."
               codesign -dvvv "$APP_PATH"
-              codesign --verify --deep --strict --verbose=2 "$APP_PATH" || true
+              codesign --verify --deep --strict --verbose=2 "$APP_PATH"
               echo "App signed successfully with App Store Distribution Profile!"
             else
               echo "WARNING: No Apple Distribution signing identity found!"
