@@ -13,6 +13,8 @@ jobs:
   build-ipa:
     name: Build IPA
     runs-on: macos-15
+    permissions:
+      contents: write
     steps:
       - name: Check out source code
         uses: actions/checkout@v4
@@ -199,6 +201,10 @@ jobs:
               # Extract entitlements from mobileprovision
               security cms -D -i "$PP_PATH" > "$RUNNER_TEMP/profile.plist"
               /usr/libexec/PlistBuddy -x -c 'Print :Entitlements' "$RUNNER_TEMP/profile.plist" > "$RUNNER_TEMP/entitlements.plist"
+              /usr/libexec/PlistBuddy -c "Delete :com.apple.security.get-task-allow" "$RUNNER_TEMP/entitlements.plist" 2>/dev/null || true
+
+              # Remove rogue embedded provisioning profiles inside extensions if any
+              find "$APP_PATH/PlugIns" -name "embedded.mobileprovision" -exec rm -f {} + 2>/dev/null || true
 
               # Sign frameworks, plugins, and embedded extensions first
               find "$APP_PATH" -depth \( -name "*.framework" -o -name "*.dylib" -o -name "*.appex" \) | while read -r item; do
@@ -232,3 +238,15 @@ jobs:
           name: VSG-Group-iOS-IPA
           path: build/VSG-Group.ipa
           retention-days: 14
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        if: success()
+        with:
+          tag_name: "v161.0-b${{ github.run_number }}"
+          name: "VSG Group iOS v161.0 Build ${{ github.run_number }}"
+          files: build/VSG-Group.ipa
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
