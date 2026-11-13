@@ -131,8 +131,8 @@ jobs:
           KEYCHAIN_PASSWORD=$(openssl rand -base64 24)
 
           # Decode certificate and provision profile
-          echo "$BUILD_CERTIFICATE_BASE64" | base64 --decode > "$CERT_PATH"
-          echo "$BUILD_PROVISION_PROFILE_BASE64" | base64 --decode > "$PP_PATH"
+          echo "$BUILD_CERTIFICATE_BASE64" | tr -d '\r\n ' | base64 --decode > "$CERT_PATH"
+          echo "$BUILD_PROVISION_PROFILE_BASE64" | tr -d '\r\n ' | base64 --decode > "$PP_PATH"
 
           # Create temporary keychain
           security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
@@ -145,8 +145,15 @@ jobs:
           curl -sS https://www.apple.com/certificateauthority/AppleWWDRCAG4.cer -o "$RUNNER_TEMP/AppleWWDRCAG4.cer"
           security import "$RUNNER_TEMP/AppleWWDRCAG4.cer" -k "$KEYCHAIN_PATH" -A || true
 
-          # Import p12 certificate
-          security import "$CERT_PATH" -k "$KEYCHAIN_PATH" -P "$P12_PASSWORD" -A -T /usr/bin/codesign
+          # Convert p12 to legacy 3DES if needed or import directly
+          echo "Importing p12 certificate into keychain..."
+          if ! security import "$CERT_PATH" -k "$KEYCHAIN_PATH" -P "$P12_PASSWORD" -A -T /usr/bin/codesign; then
+            echo "Direct import failed, attempting legacy OpenSSL conversion..."
+            LEGACY_CERT="$RUNNER_TEMP/legacy_cert.p12"
+            openssl pkcs12 -in "$CERT_PATH" -passin "pass:$P12_PASSWORD" -nodes -legacy | \
+              openssl pkcs12 -export -out "$LEGACY_CERT" -passout "pass:$P12_PASSWORD" -descert
+            security import "$LEGACY_CERT" -k "$KEYCHAIN_PATH" -P "$P12_PASSWORD" -A -T /usr/bin/codesign
+          fi
 
           # Apply keychain to user list and partition list
           security list-keychains -d user -s "$KEYCHAIN_PATH" $(security list-keychains -d user | tr -d '"')
