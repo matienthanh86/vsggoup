@@ -154,11 +154,16 @@ jobs:
           fi
           echo "Found app at: $APP_PATH"
 
-          # Remove Sticker.appex (Mozilla iMessage sticker pack) which causes ITMS-90085 "No architectures in binary"
-          if [ -d "$APP_PATH/PlugIns/Sticker.appex" ]; then
-            echo "Removing Sticker.appex to avoid Transporter 90085 lipo error..."
-            rm -rf "$APP_PATH/PlugIns/Sticker.appex"
+          # Remove PlugIns folder entirely because only 1 provisioning profile is provided for com.vsg.group.browser
+          # App Extensions (CredentialProvider, ActionExtension, etc.) require separate App Store provisioning profiles.
+          # Including extensions without their own profiles causes Transporter ITMS-90034 / 90174 rejections.
+          if [ -d "$APP_PATH/PlugIns" ]; then
+            echo "Removing PlugIns to prevent Transporter ITMS-90034 missing profile errors on extensions..."
+            rm -rf "$APP_PATH/PlugIns"
           fi
+
+          # Remove existing _CodeSignature folders to allow clean re-signing
+          find "$APP_PATH" -name "_CodeSignature" -exec rm -rf {} + 2>/dev/null || true
 
           # Fix permissions on non-binary files so Transporter/swinfo doesn't treat them as executables
           find "$APP_PATH" -type f \( -name "*.yaml" -o -name "*.yml" -o -name "*.json" -o -name "*.plist" -o -name "*.png" -o -name "*.car" \) -exec chmod 644 {} +
@@ -175,6 +180,7 @@ jobs:
           done
 
           # Clean any macOS resource fork dot-files (._*)
+          find "$APP_PATH" -name "._*" -delete 2>/dev/null || true
           dot_clean -m "$APP_PATH" 2>/dev/null || true
 
           # If signed provisioning profile was provided, embed it and codesign for App Store
@@ -203,20 +209,20 @@ jobs:
               /usr/libexec/PlistBuddy -x -c 'Print :Entitlements' "$RUNNER_TEMP/profile.plist" > "$RUNNER_TEMP/entitlements.plist"
               /usr/libexec/PlistBuddy -c "Delete :com.apple.security.get-task-allow" "$RUNNER_TEMP/entitlements.plist" 2>/dev/null || true
 
-              # Remove rogue embedded provisioning profiles inside extensions if any
-              find "$APP_PATH/PlugIns" -name "embedded.mobileprovision" -exec rm -f {} + 2>/dev/null || true
+              # Sign frameworks first
+              if [ -d "$APP_PATH/Frameworks" ]; then
+                find "$APP_PATH/Frameworks" -depth \( -name "*.framework" -o -name "*.dylib" \) | while read -r item; do
+                  echo "Signing: $item"
+                  codesign --force --sign "$SIGNING_IDENTITY" --keychain "$KEYCHAIN_PATH" --timestamp "$item" || true
+                done
+              fi
 
-              # Sign frameworks, plugins, and embedded extensions first
-              find "$APP_PATH" -depth \( -name "*.framework" -o -name "*.dylib" -o -name "*.appex" \) | while read -r item; do
-                echo "Signing: $item"
-                codesign --force --sign "$SIGNING_IDENTITY" --keychain "$KEYCHAIN_PATH" --timestamp=none "$item" || true
-              done
-
-              # Sign main app bundle with entitlements
-              echo "Signing main app bundle with entitlements..."
+              # Sign main app bundle with entitlements, DER encoding, and Apple timestamp
+              echo "Signing main app bundle with entitlements and Apple timestamp..."
               codesign --force --sign "$SIGNING_IDENTITY" --keychain "$KEYCHAIN_PATH" \
                 --entitlements "$RUNNER_TEMP/entitlements.plist" \
-                --timestamp=none "$APP_PATH"
+                --generate-entitlement-der \
+                --timestamp "$APP_PATH"
 
               echo "Verifying app signature..."
               codesign -dvvv "$APP_PATH"
