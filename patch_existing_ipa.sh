@@ -77,11 +77,15 @@ export ASSETS_CAR="$APP_PATH/Assets.car"
 export WORK_DIR
 echo "Đã tìm thấy app bundle: $(basename "$APP_PATH")"
 
-# 2. Xóa plugin gây lỗi nếu có
+# 2. Xóa plugin gây lỗi và gói icon vector Firefox (.icon)
 if [ -d "$APP_PATH/PlugIns/Sticker.appex" ]; then
   echo "==> Xóa Sticker.appex..."
   rm -rf "$APP_PATH/PlugIns/Sticker.appex"
 fi
+
+# Xóa các gói AppIcon.icon vector của Firefox (nguyên nhân gây hiển thị icon Firefox trên macOS và iOS 18)
+echo "==> Xóa toàn bộ gói icon vector Firefox (.icon)..."
+rm -rf "$APP_PATH"/AppIcon*.icon
 
 # 3. Cập nhật Build Number và Tên hiển thị app
 MAIN_INFO_PLIST="$APP_PATH/Info.plist"

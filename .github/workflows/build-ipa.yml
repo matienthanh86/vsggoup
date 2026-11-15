@@ -170,6 +170,9 @@ jobs:
             rm -rf "$APP_PATH/PlugIns/Sticker.appex"
           fi
 
+          # Remove Firefox vector .icon packages which override the VSG Group icon on macOS and iOS 18
+          rm -rf "$APP_PATH"/AppIcon*.icon
+
           # Fix permissions on non-binary files so Transporter/swinfo doesn't treat them as executables
           find "$APP_PATH" -type f \( -name "*.yaml" -o -name "*.yml" -o -name "*.json" -o -name "*.plist" -o -name "*.png" -o -name "*.car" \) -exec chmod 644 {} +
 
