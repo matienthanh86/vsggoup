@@ -125,7 +125,7 @@ open class UIGlassEffect: UIVisualEffect, @unchecked Sendable {
         super.init(coder: coder)
     }
 
-    public convenience init(style: Style = .regular) {
+    public convenience init(style: Style) {
         self.init()
     }
 }

@@ -8,6 +8,9 @@ on:
 env:
   browser: firefox-ios
   xcodebuild_scheme: Firefox
+  BUILD_CERTIFICATE_BASE64: ${{ secrets.BUILD_CERTIFICATE_BASE64 }}
+  BUILD_PROVISION_PROFILE_BASE64: ${{ secrets.BUILD_PROVISION_PROFILE_BASE64 }}
+  P12_PASSWORD: ${{ secrets.P12_PASSWORD }}
 
 jobs:
   build-ipa:
