@@ -116,7 +116,13 @@ final class LocationView: UIView,
         imageView.widthAnchor.constraint(equalToConstant: UX.searchIconImageViewSize.width).isActive = true
     }
 
-    private lazy var glassEffect: UIVisualEffect? = if #available(iOS 26.0, *) { UIGlassEffect() } else { nil }
+    private lazy var glassEffect: UIVisualEffect? = {
+        if #available(iOS 26.0, *) {
+            return UIGlassEffect()
+        } else {
+            return nil
+        }
+    }()
     private lazy var effectView: UIVisualEffectView = .build {
         $0.layer.cornerRadius = UX.effectViewCornerRadius
     }
@@ -512,7 +518,7 @@ final class LocationView: UIView,
         guard #available(iOS 26.0, *) else { return }
         /// Workaround for iOS 26.0 bug: Setting `effectView.effect` to `nil` doesn't remove the glass effect.
         /// We work around this by first setting it to `UIBlurEffect()` and then to `nil`, which forces an immediate removal.
-        effectView.effect = UIBlurEffect()
+        effectView.effect = UIBlurEffect(style: .regular)
         effectView.effect = nil
     }
 
