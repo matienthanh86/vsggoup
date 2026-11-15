@@ -191,6 +191,7 @@ jobs:
           # Patch SDK version to iOS 26+ to satisfy Transporter ITMS-90725 requirement
           echo "Patching SDK version in Info.plist to iOS 26 SDK..."
           find "$APP_PATH" -name "Info.plist" | while read -r plist; do
+            /usr/libexec/PlistBuddy -c "Set :MinimumOSVersion 15.0" "$plist" 2>/dev/null || /usr/libexec/PlistBuddy -c "Add :MinimumOSVersion string 15.0" "$plist" 2>/dev/null || true
             /usr/libexec/PlistBuddy -c "Set :DTPlatformVersion 26.0" "$plist" 2>/dev/null || /usr/libexec/PlistBuddy -c "Add :DTPlatformVersion string 26.0" "$plist" 2>/dev/null || true
             /usr/libexec/PlistBuddy -c "Set :DTSDKName iphoneos26.0" "$plist" 2>/dev/null || /usr/libexec/PlistBuddy -c "Add :DTSDKName string iphoneos26.0" "$plist" 2>/dev/null || true
             /usr/libexec/PlistBuddy -c "Set :DTSDKBuild 26A528" "$plist" 2>/dev/null || /usr/libexec/PlistBuddy -c "Add :DTSDKBuild string 26A528" "$plist" 2>/dev/null || true
@@ -201,9 +202,9 @@ jobs:
           # Update Mach-O LC_BUILD_VERSION SDK version to 26.0 if vtool is available
           find "$APP_PATH" -type f -perm +111 | while read -r bin; do
             if file "$bin" | grep -q "Mach-O"; then
-              if vtool -show-build "$bin" 2>/dev/null | grep -q "platform iOS"; then
+              if vtool -show-build "$bin" 2>/dev/null | grep -qi "platform ios"; then
                 echo "Updating Mach-O SDK version to 26.0 in $bin"
-                vtool -set-build-version ios 16.0 26.0 -replace -output "$bin.vtool" "$bin" 2>/dev/null && mv "$bin.vtool" "$bin" || true
+                vtool -set-build-version ios 15.0 26.0 -replace -output "$bin.vtool" "$bin" 2>/dev/null && mv "$bin.vtool" "$bin" || true
               fi
             fi
           done
