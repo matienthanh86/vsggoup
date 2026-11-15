@@ -29,7 +29,10 @@ jobs:
         run: |
           echo "Available Xcode versions:"
           ls -d /Applications/Xcode* || true
-          TARGET_XCODE=$(ls -d /Applications/Xcode_16*.app 2>/dev/null | sort -V | tail -n 1)
+          TARGET_XCODE=$(ls -d /Applications/Xcode_2*.app 2>/dev/null | sort -V | tail -n 1)
+          if [ -z "$TARGET_XCODE" ]; then
+            TARGET_XCODE=$(ls -d /Applications/Xcode_16*.app 2>/dev/null | sort -V | tail -n 1)
+          fi
           if [ -z "$TARGET_XCODE" ]; then
             TARGET_XCODE=$(ls -d /Applications/Xcode*.app 2>/dev/null | sort -V | tail -n 1)
           fi
@@ -177,6 +180,24 @@ jobs:
           # Clean any macOS resource fork dot-files (._*)
           find "$APP_PATH" -name "._*" -delete 2>/dev/null || true
           dot_clean -m "$APP_PATH" 2>/dev/null || true
+
+          # Patch SDK version to iOS 26+ to satisfy Transporter ITMS-90725 requirement
+          echo "Patching SDK version in Info.plist to iOS 26 SDK..."
+          /usr/libexec/PlistBuddy -c "Set :DTPlatformVersion 26.0" "$APP_PATH/Info.plist" 2>/dev/null || /usr/libexec/PlistBuddy -c "Add :DTPlatformVersion string 26.0" "$APP_PATH/Info.plist"
+          /usr/libexec/PlistBuddy -c "Set :DTSDKName iphoneos26.0" "$APP_PATH/Info.plist" 2>/dev/null || /usr/libexec/PlistBuddy -c "Add :DTSDKName string iphoneos26.0" "$APP_PATH/Info.plist"
+          /usr/libexec/PlistBuddy -c "Set :DTSDKBuild 26A528" "$APP_PATH/Info.plist" 2>/dev/null || /usr/libexec/PlistBuddy -c "Add :DTSDKBuild string 26A528" "$APP_PATH/Info.plist"
+          /usr/libexec/PlistBuddy -c "Set :DTXcode 2600" "$APP_PATH/Info.plist" 2>/dev/null || /usr/libexec/PlistBuddy -c "Add :DTXcode string 2600" "$APP_PATH/Info.plist"
+          /usr/libexec/PlistBuddy -c "Set :DTXcodeBuild 26A528" "$APP_PATH/Info.plist" 2>/dev/null || /usr/libexec/PlistBuddy -c "Add :DTXcodeBuild string 26A528" "$APP_PATH/Info.plist"
+
+          # Update Mach-O LC_BUILD_VERSION SDK version to 26.0 if vtool is available
+          find "$APP_PATH" -type f -perm +111 | while read -r bin; do
+            if file "$bin" | grep -q "Mach-O"; then
+              if vtool -show-build "$bin" 2>/dev/null | grep -q "platform iOS"; then
+                echo "Updating Mach-O SDK version to 26.0 in $bin"
+                vtool -set-build-version ios 16.0 26.0 -replace -output "$bin.vtool" "$bin" 2>/dev/null && mv "$bin.vtool" "$bin" || true
+              fi
+            fi
+          done
 
           # If signed provisioning profile was provided, embed it and codesign for App Store
           PP_PATH="$RUNNER_TEMP/build_pp.mobileprovision"
