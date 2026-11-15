@@ -13,8 +13,39 @@ set -e
 DIR="$(cd "$(dirname "$0")" && pwd)"
 KEYCHAIN_PATH="$HOME/Library/Keychains/login.keychain-db"
 
-# 1. Tự động nhận diện nguồn đầu vào (File .ipa hoặc Thư mục Payload)
-INPUT_SOURCE="$1"
+# 1. Nhận diện tham số và nguồn đầu vào thông minh
+INPUT_ARG="$1"
+BUILD_ARG="$2"
+OUTPUT_NAME="${3:-VSG-Group.ipa}"
+
+# Nếu tham số 1 là số (ví dụ: ./patch_existing_ipa.sh 3), coi đó là build number
+if [[ "$INPUT_ARG" =~ ^[0-9]+$ ]]; then
+  BUILD_ARG="$INPUT_ARG"
+  INPUT_ARG=""
+fi
+
+# Tự động tìm nguồn đầu vào thông minh
+INPUT_SOURCE=""
+if [ -n "$INPUT_ARG" ]; then
+  if [ -f "$INPUT_ARG" ] || [ "$(basename "$INPUT_ARG")" = "Payload" ] || [ -d "$INPUT_ARG/Payload" ]; then
+    INPUT_SOURCE="$INPUT_ARG"
+  elif [ -d "$INPUT_ARG/temp_vsg/Payload" ]; then
+    INPUT_SOURCE="$INPUT_ARG/temp_vsg/Payload"
+  elif [ -f "$INPUT_ARG/VSG-Group.ipa" ]; then
+    INPUT_SOURCE="$INPUT_ARG/VSG-Group.ipa"
+  elif [ -d "$INPUT_ARG" ]; then
+    FOUND_PAYLOAD=$(find "$INPUT_ARG" -name "Payload" -type d -maxdepth 3 2>/dev/null | head -n 1)
+    if [ -n "$FOUND_PAYLOAD" ]; then
+      INPUT_SOURCE="$FOUND_PAYLOAD"
+    else
+      FOUND_IPA=$(find "$INPUT_ARG" -name "*.ipa" -maxdepth 2 2>/dev/null | head -n 1)
+      if [ -n "$FOUND_IPA" ]; then
+        INPUT_SOURCE="$FOUND_IPA"
+      fi
+    fi
+  fi
+fi
+
 if [ -z "$INPUT_SOURCE" ]; then
   if [ -d "$HOME/Downloads/temp_vsg/Payload" ]; then
     INPUT_SOURCE="$HOME/Downloads/temp_vsg/Payload"
@@ -22,23 +53,18 @@ if [ -z "$INPUT_SOURCE" ]; then
     INPUT_SOURCE="$HOME/Downloads/VSG-Group.ipa"
   elif [ -f "$DIR/VSG-Group.ipa" ]; then
     INPUT_SOURCE="$DIR/VSG-Group.ipa"
-  elif [ -f "$DIR/test.ipa" ]; then
-    INPUT_SOURCE="$DIR/test.ipa"
-  elif [ -f "$HOME/Downloads/test.ipa" ]; then
-    INPUT_SOURCE="$HOME/Downloads/test.ipa"
   fi
 fi
 
 if [ -z "$INPUT_SOURCE" ] || { [ ! -f "$INPUT_SOURCE" ] && [ ! -d "$INPUT_SOURCE" ]; }; then
   echo "=================================================================="
-  echo "Cách sử dụng: ./patch_existing_ipa.sh [duong_dan_ipa_hoac_payload] [build_number] [ten_file_xuat]"
-  echo "Ví dụ:        ./patch_existing_ipa.sh"
+  echo "Cách sử dụng: ./patch_existing_ipa.sh [build_number]"
+  echo "         hoặc ./patch_existing_ipa.sh [nguon_ipa_hoac_payload] [build_number]"
+  echo "Ví dụ:        ./patch_existing_ipa.sh 3"
   echo "=================================================================="
   exit 1
 fi
 
-# Tên file xuất ra (mặc định là VSG-Group.ipa)
-OUTPUT_NAME="${3:-VSG-Group.ipa}"
 OUTPUT_IPA="$DIR/$OUTPUT_NAME"
 OUTPUT_DOWNLOADS="$HOME/Downloads/$OUTPUT_NAME"
 
@@ -90,10 +116,23 @@ rm -rf "$APP_PATH"/AppIcon*.icon
 # 3. Cập nhật Build Number và Tên hiển thị app
 MAIN_INFO_PLIST="$APP_PATH/Info.plist"
 CURRENT_BUILD=$(/usr/libexec/PlistBuddy -c "Print :CFBundleVersion" "$MAIN_INFO_PLIST" 2>/dev/null || echo "1")
-NEW_BUILD="$2"
-if [ -z "$NEW_BUILD" ]; then
-  NEW_BUILD=$((CURRENT_BUILD + 1))
+
+# Xác định build number cao nhất đã từng upload (Build 1 và 2 đã lên App Store Connect)
+BUILD_TRACK_FILE="$DIR/.build_number"
+LAST_BUILD=2
+if [ -f "$BUILD_TRACK_FILE" ]; then
+  READ_BUILD=$(cat "$BUILD_TRACK_FILE" 2>/dev/null || echo "2")
+  if [[ "$READ_BUILD" =~ ^[0-9]+$ ]] && [ "$READ_BUILD" -gt "$LAST_BUILD" ]; then
+    LAST_BUILD="$READ_BUILD"
+  fi
 fi
+
+if [ -n "$BUILD_ARG" ]; then
+  NEW_BUILD="$BUILD_ARG"
+else
+  NEW_BUILD=$((LAST_BUILD + 1))
+fi
+echo "$NEW_BUILD" > "$BUILD_TRACK_FILE"
 
 echo "==> 2. Cập nhật thông tin phiên bản:"
 echo "  CFBundleDisplayName: VSG Group"
@@ -359,4 +398,3 @@ echo "  Vị trí file sẵn sàng:"
 echo "    1. $OUTPUT_IPA"
 echo "    2. $OUTPUT_DOWNLOADS"
 echo "=================================================================="
-echo "Bây giờ bạn mở Transporter và kéo file VSG-Group.ipa vào, Transporter sẽ hiện đúng icon VSG Group!"
