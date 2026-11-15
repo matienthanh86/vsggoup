@@ -110,6 +110,10 @@ extension UIView {
     }
 }
 
+// UIGlassEffect is natively provided by UIKit in iOS 26+ SDK (Xcode 26+).
+// To avoid ambiguous type collision between Common.UIGlassEffect and UIKit.UIGlassEffect
+// on Xcode 26+, this compatibility shim is only compiled when LEGACY_XCODE_SHIMS is defined.
+#if LEGACY_XCODE_SHIMS
 open class UIGlassEffect: UIVisualEffect, @unchecked Sendable {
     public enum Style: Sendable {
         case regular
@@ -129,6 +133,7 @@ open class UIGlassEffect: UIVisualEffect, @unchecked Sendable {
         self.init()
     }
 }
+#endif
 
 // MARK: - UIButton.Configuration iOS 26 Glass Shims
 extension UIButton.Configuration {
