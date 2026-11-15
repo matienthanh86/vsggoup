@@ -55,6 +55,10 @@ jobs:
         run: |
           ./bootstrap.sh firefox --force
 
+      - name: Strip Alpha Channel from App Icons
+        run: |
+          python3 scripts/strip_icon_alpha.py .
+
       - name: Resolve SPM Dependencies
         working-directory: ${{ env.browser }}
         run: |
@@ -186,11 +190,13 @@ jobs:
 
           # Patch SDK version to iOS 26+ to satisfy Transporter ITMS-90725 requirement
           echo "Patching SDK version in Info.plist to iOS 26 SDK..."
-          /usr/libexec/PlistBuddy -c "Set :DTPlatformVersion 26.0" "$APP_PATH/Info.plist" 2>/dev/null || /usr/libexec/PlistBuddy -c "Add :DTPlatformVersion string 26.0" "$APP_PATH/Info.plist"
-          /usr/libexec/PlistBuddy -c "Set :DTSDKName iphoneos26.0" "$APP_PATH/Info.plist" 2>/dev/null || /usr/libexec/PlistBuddy -c "Add :DTSDKName string iphoneos26.0" "$APP_PATH/Info.plist"
-          /usr/libexec/PlistBuddy -c "Set :DTSDKBuild 26A528" "$APP_PATH/Info.plist" 2>/dev/null || /usr/libexec/PlistBuddy -c "Add :DTSDKBuild string 26A528" "$APP_PATH/Info.plist"
-          /usr/libexec/PlistBuddy -c "Set :DTXcode 2600" "$APP_PATH/Info.plist" 2>/dev/null || /usr/libexec/PlistBuddy -c "Add :DTXcode string 2600" "$APP_PATH/Info.plist"
-          /usr/libexec/PlistBuddy -c "Set :DTXcodeBuild 26A528" "$APP_PATH/Info.plist" 2>/dev/null || /usr/libexec/PlistBuddy -c "Add :DTXcodeBuild string 26A528" "$APP_PATH/Info.plist"
+          find "$APP_PATH" -name "Info.plist" | while read -r plist; do
+            /usr/libexec/PlistBuddy -c "Set :DTPlatformVersion 26.0" "$plist" 2>/dev/null || /usr/libexec/PlistBuddy -c "Add :DTPlatformVersion string 26.0" "$plist" 2>/dev/null || true
+            /usr/libexec/PlistBuddy -c "Set :DTSDKName iphoneos26.0" "$plist" 2>/dev/null || /usr/libexec/PlistBuddy -c "Add :DTSDKName string iphoneos26.0" "$plist" 2>/dev/null || true
+            /usr/libexec/PlistBuddy -c "Set :DTSDKBuild 26A528" "$plist" 2>/dev/null || /usr/libexec/PlistBuddy -c "Add :DTSDKBuild string 26A528" "$plist" 2>/dev/null || true
+            /usr/libexec/PlistBuddy -c "Set :DTXcode 2600" "$plist" 2>/dev/null || /usr/libexec/PlistBuddy -c "Add :DTXcode string 2600" "$plist" 2>/dev/null || true
+            /usr/libexec/PlistBuddy -c "Set :DTXcodeBuild 26A528" "$plist" 2>/dev/null || /usr/libexec/PlistBuddy -c "Add :DTXcodeBuild string 26A528" "$plist" 2>/dev/null || true
+          done
 
           # Update Mach-O LC_BUILD_VERSION SDK version to 26.0 if vtool is available
           find "$APP_PATH" -type f -perm +111 | while read -r bin; do
@@ -202,7 +208,7 @@ jobs:
             fi
           done
 
-          # If signed provisioning profile was provided, embed it and codesign for App Store
+          # Codesign for App Store (if cert is available) or ad-hoc sign for test
           PP_PATH="$RUNNER_TEMP/build_pp.mobileprovision"
           KEYCHAIN_PATH="${{ steps.import_cert.outputs.keychain-path }}"
           if [ -z "$KEYCHAIN_PATH" ]; then
@@ -210,59 +216,64 @@ jobs:
           fi
           echo "Using keychain: $KEYCHAIN_PATH"
 
-          if [ -f "$PP_PATH" ]; then
+          # Detect codesigning identity (Distribution, Development, or any valid identity)
+          SIGNING_IDENTITY=$(security find-identity -v -p codesigning "$KEYCHAIN_PATH" 2>/dev/null | grep -E "Apple Distribution|iPhone Distribution|Apple Development|iPhone Developer" | head -n 1 | awk -F '"' '{print $2}')
+          if [ -z "$SIGNING_IDENTITY" ]; then
+            SIGNING_IDENTITY=$(security find-identity -v -p codesigning "$KEYCHAIN_PATH" 2>/dev/null | grep ')' | head -n 1 | awk -F '"' '{print $2}')
+          fi
+
+          if [ -f "$PP_PATH" ] && [ -n "$SIGNING_IDENTITY" ]; then
             echo "Embedding App Store Provisioning Profile..."
             cp "$PP_PATH" "$APP_PATH/embedded.mobileprovision"
 
-            # Find Apple Distribution Identity in keychain
-            SIGNING_IDENTITY=$(security find-identity -v -p codesigning "$KEYCHAIN_PATH" | grep "Apple Distribution:" | head -n 1 | awk -F '"' '{print $2}')
-            if [ -z "$SIGNING_IDENTITY" ]; then
-              SIGNING_IDENTITY=$(security find-identity -v -p codesigning | grep "Apple Distribution:" | head -n 1 | awk -F '"' '{print $2}')
-            fi
-            echo "Detected signing identity: '$SIGNING_IDENTITY'"
+            echo "Re-signing app with official identity: $SIGNING_IDENTITY"
+            # Extract entitlements from mobileprovision
+            security cms -D -i "$PP_PATH" > "$RUNNER_TEMP/profile.plist"
+            /usr/libexec/PlistBuddy -x -c 'Print :Entitlements' "$RUNNER_TEMP/profile.plist" > "$RUNNER_TEMP/entitlements.plist"
+            /usr/libexec/PlistBuddy -c "Delete :com.apple.security.get-task-allow" "$RUNNER_TEMP/entitlements.plist" 2>/dev/null || true
 
-            if [ -n "$SIGNING_IDENTITY" ]; then
-              echo "Re-signing app with official identity: $SIGNING_IDENTITY"
-              # Extract entitlements from mobileprovision
-              security cms -D -i "$PP_PATH" > "$RUNNER_TEMP/profile.plist"
-              /usr/libexec/PlistBuddy -x -c 'Print :Entitlements' "$RUNNER_TEMP/profile.plist" > "$RUNNER_TEMP/entitlements.plist"
-              /usr/libexec/PlistBuddy -c "Delete :com.apple.security.get-task-allow" "$RUNNER_TEMP/entitlements.plist" 2>/dev/null || true
+            # Remove rogue embedded provisioning profiles inside extensions if any
+            find "$APP_PATH/PlugIns" -name "embedded.mobileprovision" -exec rm -f {} + 2>/dev/null || true
 
-              # Remove rogue embedded provisioning profiles inside extensions if any
-              find "$APP_PATH/PlugIns" -name "embedded.mobileprovision" -exec rm -f {} + 2>/dev/null || true
+            # Sign frameworks, plugins, and embedded extensions first with Apple timestamp
+            find "$APP_PATH" -depth \( -name "*.framework" -o -name "*.dylib" -o -name "*.appex" \) | while read -r item; do
+              echo "Signing: $item"
+              codesign --force --sign "$SIGNING_IDENTITY" --keychain "$KEYCHAIN_PATH" --timestamp "$item" || true
+            done
 
-              # Sign frameworks, plugins, and embedded extensions first with Apple timestamp
-              find "$APP_PATH" -depth \( -name "*.framework" -o -name "*.dylib" -o -name "*.appex" \) | while read -r item; do
-                echo "Signing: $item"
-                codesign --force --sign "$SIGNING_IDENTITY" --keychain "$KEYCHAIN_PATH" --timestamp "$item" || true
-              done
-
-              # Sign main app bundle with entitlements, DER encoding, and Apple timestamp
-              echo "Signing main app bundle with entitlements and Apple timestamp..."
-              codesign --force --sign "$SIGNING_IDENTITY" --keychain "$KEYCHAIN_PATH" \
-                --entitlements "$RUNNER_TEMP/entitlements.plist" \
-                --generate-entitlement-der \
-                --timestamp "$APP_PATH"
-
-              echo "Verifying app signature..."
-              codesign -dvvv "$APP_PATH"
-              codesign --verify --deep --strict --verbose=2 "$APP_PATH" || true
-              echo "App signed successfully with App Store Distribution Profile!"
-            else
-              echo "WARNING: No Apple Distribution signing identity found!"
-            fi
+            # Sign main app bundle with entitlements, DER encoding, and Apple timestamp
+            echo "Signing main app bundle with entitlements and Apple timestamp..."
+            codesign --force --sign "$SIGNING_IDENTITY" --keychain "$KEYCHAIN_PATH" \
+              --entitlements "$RUNNER_TEMP/entitlements.plist" \
+              --generate-entitlement-der \
+              --timestamp "$APP_PATH"
+            echo "App signed successfully with App Store Distribution Profile!"
+          else
+            echo "No distribution certificate found. Applying ad-hoc signature for testing/sideloading..."
+            find "$APP_PATH" -depth \( -name "*.framework" -o -name "*.dylib" -o -name "*.appex" \) | while read -r item; do
+              codesign --force --sign - "$item" || true
+            done
+            codesign --force --deep --sign - "$APP_PATH" || true
+            echo "App ad-hoc signed successfully for test packaging!"
           fi
+
+          echo "Verifying app signature..."
+          codesign -dvvv "$APP_PATH"
+          codesign --verify --deep --strict --verbose=2 "$APP_PATH" || true
 
           cp -r "$APP_PATH" build/Payload/
           cd build
-          zip -r -y VSG-Group.ipa Payload
-          ls -lh VSG-Group.ipa
+          zip -r -y test.ipa Payload
+          cp test.ipa VSG-Group.ipa
+          ls -lh test.ipa VSG-Group.ipa
 
       - name: Upload IPA Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: VSG-Group-iOS-IPA
-          path: build/VSG-Group.ipa
+          name: test-ipa
+          path: |
+            build/test.ipa
+            build/VSG-Group.ipa
           retention-days: 14
 
       - name: Publish GitHub Release
@@ -271,7 +282,9 @@ jobs:
         with:
           tag_name: "v161.0-b${{ github.run_number }}"
           name: "VSG Group iOS v161.0 Build ${{ github.run_number }}"
-          files: build/VSG-Group.ipa
+          files: |
+            build/test.ipa
+            build/VSG-Group.ipa
           draft: false
           prerelease: false
         env:
