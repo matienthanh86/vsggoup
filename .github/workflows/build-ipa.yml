@@ -263,17 +263,14 @@ jobs:
 
           cp -r "$APP_PATH" build/Payload/
           cd build
-          zip -r -y test.ipa Payload
-          cp test.ipa VSG-Group.ipa
-          ls -lh test.ipa VSG-Group.ipa
+          zip -r -y -q VSG-Group.ipa Payload
+          ls -lh VSG-Group.ipa
 
       - name: Upload IPA Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: test-ipa
-          path: |
-            build/test.ipa
-            build/VSG-Group.ipa
+          name: VSG-Group-ipa
+          path: build/VSG-Group.ipa
           retention-days: 14
 
       - name: Publish GitHub Release
@@ -282,9 +279,7 @@ jobs:
         with:
           tag_name: "v161.0-b${{ github.run_number }}"
           name: "VSG Group iOS v161.0 Build ${{ github.run_number }}"
-          files: |
-            build/test.ipa
-            build/VSG-Group.ipa
+          files: build/VSG-Group.ipa
           draft: false
           prerelease: false
         env:
