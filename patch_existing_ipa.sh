@@ -117,11 +117,11 @@ rm -rf "$APP_PATH"/AppIcon*.icon
 MAIN_INFO_PLIST="$APP_PATH/Info.plist"
 CURRENT_BUILD=$(/usr/libexec/PlistBuddy -c "Print :CFBundleVersion" "$MAIN_INFO_PLIST" 2>/dev/null || echo "1")
 
-# Xác định build number cao nhất đã từng upload (Build 1 và 2 đã lên App Store Connect)
+# Xác định build number cao nhất đã từng upload (Build 1, 2 và 3 đã lên App Store Connect)
 BUILD_TRACK_FILE="$DIR/.build_number"
-LAST_BUILD=2
+LAST_BUILD=3
 if [ -f "$BUILD_TRACK_FILE" ]; then
-  READ_BUILD=$(cat "$BUILD_TRACK_FILE" 2>/dev/null || echo "2")
+  READ_BUILD=$(cat "$BUILD_TRACK_FILE" 2>/dev/null || echo "3")
   if [[ "$READ_BUILD" =~ ^[0-9]+$ ]] && [ "$READ_BUILD" -gt "$LAST_BUILD" ]; then
     LAST_BUILD="$READ_BUILD"
   fi
@@ -155,122 +155,46 @@ if [ -f "$PRISTINE_CAR" ]; then
 fi
 
 if [ -f "$ASSETS_CAR" ]; then
-  echo "==> 3. Nén và nhúng icon VSG Group vào Assets.car với chuẩn Opaque: True (ITMS-90717)..."
-  APP_PATH="$APP_PATH" ASSETS_CAR="$ASSETS_CAR" python3 - << 'PYEOF'
-import os, sys, ctypes, zlib, struct, subprocess
+  echo "==> 3. Vá Assets.car để loại bỏ alpha trên AppIcon (ITMS-90717 - chuẩn cấu trúc Build 1)..."
+  python3 - << PYEOF
+car_path = "$ASSETS_CAR"
+with open(car_path, 'rb') as f:
+    data = bytearray(f.read())
 
-app_path = os.environ.get("APP_PATH")
-vsg_src = None
-for candidate in [
-    f"{app_path}/AppIcon76x76@2x~ipad.png",
-    f"{app_path}/AppIcon60x60@2x.png",
-    os.path.expanduser("~/Downloads/temp_vsg/Payload/Client.app/AppIcon76x76@2x~ipad.png"),
-    os.path.expanduser("~/Downloads/temp_vsg/Payload/Client.app/AppIcon60x60@2x.png")
-]:
-    if os.path.exists(candidate):
-        vsg_src = candidate
-        break
-
-if not vsg_src:
-    print("Cảnh báo: Không tìm thấy icon VSG trong app bundle!")
-    sys.exit(0)
-
-print(f"  Sử dụng icon nguồn VSG Group: {vsg_src}")
-tmp_png = "/tmp/vsg_1024_clean.png"
-subprocess.run(["sips", "-z", "1024", "1024", vsg_src, "--out", tmp_png], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-
-with open(tmp_png, "rb") as f:
-    data = f.read()
-
-w, h, bit_depth, color_type = struct.unpack(">IIBB", data[16:26])
-idat = bytearray()
-pos = 8
-while pos < len(data):
-    length, ctype = struct.unpack(">I4s", data[pos:pos+8])
-    if ctype == b"IDAT":
-        idat.extend(data[pos+8:pos+8+length])
-    pos += 8 + length + 4
-
-decompressed = zlib.decompress(idat)
-bpp = 3 if color_type == 2 else 4
-line_len = 1 + w * bpp
-raw_pixels = bytearray(w * h * bpp)
-stride = w * bpp
-
-for y in range(h):
-    filter_type = decompressed[y * line_len]
-    curr = decompressed[y * line_len + 1 : (y + 1) * line_len]
-    out_line = bytearray(stride)
-    prev = raw_pixels[(y - 1) * stride : y * stride] if y > 0 else bytearray(stride)
-    for x in range(stride):
-        a = out_line[x - bpp] if x >= bpp else 0
-        b = prev[x]
-        c = prev[x - bpp] if x >= bpp else 0
-        if filter_type == 0: val = curr[x]
-        elif filter_type == 1: val = (curr[x] + a) & 0xff
-        elif filter_type == 2: val = (curr[x] + b) & 0xff
-        elif filter_type == 3: val = (curr[x] + (a + b) // 2) & 0xff
-        elif filter_type == 4:
-            p = a + b - c
-            pa = abs(p - a); pb = abs(p - b); pc = abs(p - c)
-            if pa <= pb and pa <= pc: pr = a
-            elif pb <= pc: pr = b
-            else: pr = c
-            val = (curr[x] + pr) & 0xff
-        else: val = curr[x]
-        out_line[x] = val
-    raw_pixels[y * stride : (y + 1) * stride] = out_line
-
-bgra = bytearray(w * h * 4)
-for i in range(w * h):
-    if bpp == 3:
-        r = raw_pixels[i * 3]; g = raw_pixels[i * 3 + 1]; b = raw_pixels[i * 3 + 2]
-    else:
-        r = raw_pixels[i * 4]; g = raw_pixels[i * 4 + 1]; b = raw_pixels[i * 4 + 2]
-    bgra[i * 4] = b
-    bgra[i * 4 + 1] = g
-    bgra[i * 4 + 2] = r
-    bgra[i * 4 + 3] = 0xff
-
-lib = ctypes.cdll.LoadLibrary("/usr/lib/libcompression.dylib")
-encode = lib.compression_encode_buffer
-encode.argtypes = [ctypes.c_void_p, ctypes.c_size_t, ctypes.c_void_p, ctypes.c_size_t, ctypes.c_void_p, ctypes.c_int]
-encode.restype = ctypes.c_size_t
-
-dst = ctypes.create_string_buffer(len(bgra))
-c_len = encode(dst, len(bgra), bytes(bgra), len(bgra), None, 0x801)
-compressed_lzfse = dst.raw[:c_len]
-
-car_path = os.environ.get("ASSETS_CAR")
-with open(car_path, "rb") as f:
-    car_data = bytearray(f.read())
-
-patched_cnt = 0
-for target_name in [b"appstore.png", b"appstore-dark.png", b"appstore-tinted.png"]:
+def replace_rendition(data, src_name, dst_name):
+    p_src = data.find(src_name.encode())
+    if p_src == -1:
+        return 0
+    istc_src = data.rfind(b"ISTC", max(0, p_src - 60), p_src)
+    payload_len = int.from_bytes(data[istc_src + 0xb4 : istc_src + 0xb8], "little")
+    src_rend = bytearray(data[istc_src : istc_src + 0xb8 + payload_len])
+    
+    src_name_len = int.from_bytes(src_rend[36:40], "little")
+    dst_bytes = dst_name.encode() + b"\x00"
+    src_rend[36:40] = len(dst_name).to_bytes(4, "little")
+    padded = dst_bytes + b"\x00" * (src_name_len - len(dst_bytes))
+    src_rend[40:40+len(padded)] = padded
+    
     pos = 0
+    cnt = 0
     while True:
-        p = car_data.find(target_name, pos)
+        p = data.find(dst_name.encode(), pos)
         if p == -1:
             break
-        istc = car_data.rfind(b"ISTC", max(0, p - 60), p)
-        if istc != -1:
-            old_payload_len = int.from_bytes(car_data[istc + 0xb4 : istc + 0xb8], "little")
-            new_payload_hdr = bytearray(car_data[istc + 0xb8 : istc + 0xb8 + 140])
-            new_payload_hdr[0x6c] = 0x03 # isOpaque = true
-            new_payload_hdr[0x88:0x8c] = c_len.to_bytes(4, "little")
-            new_payload = new_payload_hdr + compressed_lzfse
-            new_payload_len = len(new_payload)
-            if new_payload_len <= old_payload_len:
-                car_data[istc + 0xb4 : istc + 0xb8] = new_payload_len.to_bytes(4, "little")
-                car_data[istc + 0xb8 : istc + 0xb8 + new_payload_len] = new_payload
-                car_data[istc + 0xb8 + new_payload_len : istc + 0xb8 + old_payload_len] = b"\x00" * (old_payload_len - new_payload_len)
-                patched_cnt += 1
+        istc = data.rfind(b"ISTC", max(0, p - 60), p)
+        if istc != -1 and istc != istc_src:
+            data[istc : istc + len(src_rend)] = src_rend
+            cnt += 1
         pos = p + 1
+    return cnt
 
-with open(car_path, "wb") as f:
-    f.write(car_data)
+c1 = replace_rendition(data, "yellow-light-min.png", "appstore.png")
+c2 = replace_rendition(data, "legacy-icon-dark-min.png", "appstore-dark.png")
+c3 = replace_rendition(data, "AppIcon_Alt_Tinted.png", "appstore-tinted.png")
 
-print(f"  -> Đã nhúng thành công icon chuẩn VSG Group vào {patched_cnt} vị trí trong Assets.car!")
+with open(car_path, 'wb') as f:
+    f.write(data)
+print(f"  -> Đã vá thành công {c1 + c2 + c3} rendition icon sang Opaque: True (giữ nguyên vẹn BOM CAR)!")
 PYEOF
 fi
 
