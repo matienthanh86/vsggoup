@@ -15,7 +15,7 @@ env:
 jobs:
   build-ipa:
     name: Build IPA
-    runs-on: macos-15
+    runs-on: macos-14
     permissions:
       contents: write
     steps:
