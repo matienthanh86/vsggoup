@@ -12,12 +12,13 @@ public final class AgentNotiAudioPlayer: NSObject, AVAudioPlayerDelegate, @unche
     private var ringtonePlayer: AVAudioPlayer?
     private var endCallPlayer: AVAudioPlayer?
     private var vibrationTimer: Timer?
+    private var timeoutWorkItem: DispatchWorkItem?
 
     private override init() {
         super.init()
     }
 
-    public func startCallRingtone() {
+    public func startCallRingtone(timeoutInterval: TimeInterval = 45.0, onTimeout: (@Sendable () -> Void)? = nil) {
         stopCallRingtone()
 
         do {
@@ -40,14 +41,29 @@ public final class AgentNotiAudioPlayer: NSObject, AVAudioPlayerDelegate, @unche
                 AudioServicesPlayAlertSound(kSystemSoundID_Vibrate)
             }
         }
+
+        // Tự động ngắt chuông và báo timeout sau 45s nếu không ai nhấc máy
+        let workItem = DispatchWorkItem { [weak self] in
+            self?.playEndCallSound()
+            onTimeout?()
+        }
+        timeoutWorkItem = workItem
+        DispatchQueue.main.asyncAfter(deadline: .now() + timeoutInterval, execute: workItem)
     }
 
     public func stopCallRingtone() {
+        timeoutWorkItem?.cancel()
+        timeoutWorkItem = nil
+
         ringtonePlayer?.stop()
         ringtonePlayer = nil
 
         vibrationTimer?.invalidate()
         vibrationTimer = nil
+    }
+
+    public func stopRingtone() {
+        stopCallRingtone()
     }
 
     public func playEndCallSound() {

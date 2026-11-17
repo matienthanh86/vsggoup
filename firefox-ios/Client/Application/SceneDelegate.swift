@@ -129,6 +129,8 @@ class SceneDelegate: UIResponder,
         if let uuid = sceneCoordinator?.windowUUID {
             downloadQueue.pauseAll(for: uuid)
             tabErrorTelemetryHelper.recordTabCountForBackgroundedScene(uuid)
+            let windowManager: WindowManager = AppContainer.shared.resolve()
+            windowManager.tabManager(for: uuid)?.preserveTabs(immediate: true)
         }
     }
 
@@ -206,10 +208,24 @@ class SceneDelegate: UIResponder,
             return
         }
 
+        // VSG Group: Quét danh sách các tab đang mở
+        // Nếu có tab đã mở dev.dino.top (hoặc host chứa dino.top / vietravel), focus thẳng vào tab đó thay vì mở thêm tab mới
+        let windowManager: WindowManager = AppContainer.shared.resolve()
+        let tabManagers = windowManager.allWindowTabManagers()
+        for tm in tabManagers {
+            if let existingTab = tm.tabs.first(where: {
+                guard let host = $0.url?.host?.lowercased() else { return false }
+                return host.contains("dino.top") || host.contains("vietravel")
+            }) {
+                tm.selectTab(existingTab, previous: tm.selectedTab, immediatePreservation: true)
+                _ = existingTab.loadRequest(URLRequest(url: url))
+                return
+            }
+        }
+
+        // Luôn mở tab thường (không mở tab ẩn danh) để tab được lưu vĩnh viễn, không bị mất khi restart máy
         routeBuilder.configure(
-            isPrivate: UserDefaults.standard.bool(
-                forKey: PrefsKeys.LastSessionWasPrivate
-            ),
+            isPrivate: false,
             prefs: profile.prefs
         )
 
