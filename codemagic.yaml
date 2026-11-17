@@ -1,0 +1,130 @@
+workflows:
+  ios-release:
+    name: Build VSG Group IPA
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+    environment:
+      xcode: latest
+      node: 20
+      vars:
+        BROWSER: firefox-ios
+        XCODEBUILD_SCHEME: Firefox
+    scripts:
+      - name: Setup Xcode Environment
+        script: |
+          xcodebuild -version
+          for proc in $(find /Applications/Xcode*.app -name "appintentsnltrainingprocessor" 2>/dev/null); do
+            echo "Stubbing $proc"
+            sudo rm -f "$proc"
+            printf '#!/bin/sh\nexit 0\n' | sudo tee "$proc" > /dev/null
+            sudo chmod 755 "$proc"
+          done
+
+      - name: Run Bootstrap
+        script: |
+          ./bootstrap.sh firefox --force
+
+      - name: Strip Alpha Channel from App Icons
+        script: |
+          python3 scripts/strip_icon_alpha.py .
+
+      - name: Resolve SPM Dependencies
+        script: |
+          cd "$BROWSER"
+          xcodebuild -resolvePackageDependencies -project Client.xcodeproj -onlyUsePackageVersionsFromResolvedFile || xcodebuild -resolvePackageDependencies -project Client.xcodeproj
+
+      - name: Build Archive
+        script: |
+          cd "$BROWSER"
+          set -o pipefail
+
+          perl -0777 -pi -e 's/"?-enable-upcoming-feature"?\s*,?\s*"?IsolatedDefaultValues"?\s*,?//g' Client.xcodeproj/project.pbxproj 2>/dev/null || true
+          perl -0777 -pi -e 's/SWIFT_UPCOMING_FEATURE_ISOLATED_DEFAULT_VALUES\s*=\s*YES/SWIFT_UPCOMING_FEATURE_ISOLATED_DEFAULT_VALUES = NO/g' Client.xcodeproj/project.pbxproj 2>/dev/null || true
+          find . -name "*.xcconfig" -exec perl -0777 -pi -e 's/-enable-upcoming-feature\s+IsolatedDefaultValues//g' {} + 2>/dev/null || true
+
+          perl -0777 -pi -e 's/nonisolated\s+nonisolated/nonisolated/g' Client/Frontend/Browser/Toolbars/ToolbarHelper.swift 2>/dev/null || true
+          perl -0777 -pi -e 's/nonisolated\s+nonisolated/nonisolated/g' Client/Frontend/Summarizer/SummarizeMiddleware.swift 2>/dev/null || true
+          perl -0777 -pi -e 's/nonisolated\s+nonisolated/nonisolated/g' Client/Frontend/Browser/Tabs/TabTrayUtils.swift 2>/dev/null || true
+          perl -0777 -pi -e 's/nonisolated\s+nonisolated/nonisolated/g' Client/VPN/VPNManager.swift 2>/dev/null || true
+
+          perl -0777 -pi -e 's/org\.mozilla\.ios\.(Firefox|FirefoxBeta|Fennec|FennecEnterprise|Focus)/com.vsg.group.browser/g' Client.xcodeproj/project.pbxproj 2>/dev/null || true
+          find . \( -name "*.xcconfig" -o -name "*.plist" -o -name "*.entitlements" \) -exec perl -0777 -pi -e 's/org\.mozilla\.ios\.(Firefox|FirefoxBeta|Fennec|FennecEnterprise|Focus)/com.vsg.group.browser/g' {} + 2>/dev/null || true
+
+          xcodebuild archive \
+            -project Client.xcodeproj \
+            -scheme "$XCODEBUILD_SCHEME" \
+            -configuration Firefox \
+            -destination "generic/platform=iOS" \
+            -archivePath ../build/Firefox.xcarchive \
+            -skipMacroValidation \
+            -skipPackagePluginValidation \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            AD_HOC_CODE_SIGNING_ALLOWED=YES \
+            VALIDATE_PRODUCT=NO \
+            SWIFT_VERSION=5.0 \
+            SWIFT_STRICT_CONCURRENCY=minimal \
+            SWIFT_UPCOMING_FEATURE_ISOLATED_DEFAULT_VALUES=NO \
+            SWIFT_UPCOMING_FEATURE_GLOBAL_CONCURRENCY=NO \
+            SWIFT_UPCOMING_FEATURE_REGION_BASED_ISOLATION=NO \
+            SWIFT_COMPILATION_MODE=incremental \
+            SWIFT_OPTIMIZATION_LEVEL=-Onone \
+            ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS=NO \
+            COMPILER_INDEX_STORE_ENABLE=NO \
+            ENABLE_APPINTENTS_DEPLOYMENT_AWARE_PROCESSING=NO \
+            SWIFT_TREAT_WARNINGS_AS_ERRORS=NO \
+            GCC_TREAT_WARNINGS_AS_ERRORS=NO
+
+      - name: Package IPA
+        script: |
+          mkdir -p build/Payload
+          APP_PATH=$(find build/*.xcarchive/Products/Applications -name "*.app" | head -n 1)
+          if [ -z "$APP_PATH" ]; then
+            echo "Error: .app bundle not found in archive"
+            exit 1
+          fi
+          echo "Found app at: $APP_PATH"
+
+          if [ -d "$APP_PATH/PlugIns/Sticker.appex" ]; then
+            rm -rf "$APP_PATH/PlugIns/Sticker.appex"
+          fi
+          rm -rf "$APP_PATH"/AppIcon*.icon
+
+          find "$APP_PATH" -type f \( -name "*.yaml" -o -name "*.yml" -o -name "*.json" -o -name "*.plist" -o -name "*.png" -o -name "*.car" \) -exec chmod 644 {} +
+
+          find "$APP_PATH" -type f -perm +111 | while read -r bin; do
+            if file "$bin" | grep -q "Mach-O"; then
+              if lipo -info "$bin" | grep -q "Architectures in the fat file"; then
+                lipo -thin arm64 "$bin" -output "$bin.thin" && mv "$bin.thin" "$bin"
+              fi
+            fi
+          done
+
+          find "$APP_PATH" -name "._*" -delete 2>/dev/null || true
+          dot_clean -m "$APP_PATH" 2>/dev/null || true
+
+          find "$APP_PATH" -name "Info.plist" | while read -r plist; do
+            /usr/libexec/PlistBuddy -c "Set :MinimumOSVersion 15.0" "$plist" 2>/dev/null || /usr/libexec/PlistBuddy -c "Add :MinimumOSVersion string 15.0" "$plist" 2>/dev/null || true
+            /usr/libexec/PlistBuddy -c "Set :DTPlatformVersion 26.0" "$plist" 2>/dev/null || /usr/libexec/PlistBuddy -c "Add :DTPlatformVersion string 26.0" "$plist" 2>/dev/null || true
+            /usr/libexec/PlistBuddy -c "Set :DTSDKName iphoneos26.0" "$plist" 2>/dev/null || /usr/libexec/PlistBuddy -c "Add :DTSDKName string iphoneos26.0" "$plist" 2>/dev/null || true
+            /usr/libexec/PlistBuddy -c "Set :DTSDKBuild 26A528" "$plist" 2>/dev/null || /usr/libexec/PlistBuddy -c "Add :DTSDKBuild string 26A528" "$plist" 2>/dev/null || true
+            /usr/libexec/PlistBuddy -c "Set :DTXcode 2600" "$plist" 2>/dev/null || /usr/libexec/PlistBuddy -c "Add :DTXcode string 2600" "$plist" 2>/dev/null || true
+            /usr/libexec/PlistBuddy -c "Set :DTXcodeBuild 26A528" "$plist" 2>/dev/null || /usr/libexec/PlistBuddy -c "Add :DTXcodeBuild string 26A528" "$plist" 2>/dev/null || true
+          done
+
+          find "$APP_PATH" -type f -perm +111 | while read -r bin; do
+            if file "$bin" | grep -q "Mach-O"; then
+              if vtool -show-build "$bin" 2>/dev/null | grep -qi "platform ios"; then
+                vtool -set-build-version ios 15.0 26.0 -replace -output "$bin.vtool" "$bin" 2>/dev/null && mv "$bin.vtool" "$bin" || true
+              fi
+            fi
+          done
+
+          cp -r "$APP_PATH" build/Payload/
+          cd build
+          zip -r -y -q VSG-Group.ipa Payload
+          ls -lh VSG-Group.ipa
+
+    artifacts:
+      - build/VSG-Group.ipa
