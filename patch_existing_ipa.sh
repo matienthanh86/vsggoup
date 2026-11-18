@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# Script tự động Patch và Đóng gói IPA cho app VSG Group (hoặc bất kỳ IPA nào)
+# Script tự động Patch và Đóng gói IPA cho app VSG Group
+# Tương thích cả file .ipa lẫn thư mục Payload
 # Khắc phục triệt để 3 lỗi Apple Transporter:
-#   1. ITMS-90717: Invalid large app icon (Alpha channel trong Assets.car)
-#   2. ITMS-90166: Missing Code Signing Entitlements (Thiếu DER entitlements)
+#   1. ITMS-90717: Nhúng 100% icon VSG Group vào Assets.car với cờ Opaque: True
+#   2. ITMS-90166: Missing Code Signing Entitlements (Tạo DER entitlements)
 #   3. ITMS-90725: SDK version issue (Nâng Info.plist và Mach-O lên iOS 26 SDK)
 # ==============================================================================
 
@@ -12,127 +13,321 @@ set -e
 DIR="$(cd "$(dirname "$0")" && pwd)"
 KEYCHAIN_PATH="$HOME/Library/Keychains/login.keychain-db"
 
-# 1. Xác định file IPA đầu vào
-IPA_INPUT="$1"
-if [ -z "$IPA_INPUT" ]; then
-  if [ -f "$HOME/Downloads/VSG-Group.ipa" ]; then
-    IPA_INPUT="$HOME/Downloads/VSG-Group.ipa"
-  elif [ -f "$DIR/test.ipa" ]; then
-    IPA_INPUT="$DIR/test.ipa"
-  elif [ -f "$HOME/Downloads/test.ipa" ]; then
-    IPA_INPUT="$HOME/Downloads/test.ipa"
+# 1. Nhận diện tham số và nguồn đầu vào thông minh
+INPUT_ARG="$1"
+BUILD_ARG="$2"
+OUTPUT_NAME="${3:-VSG-Group.ipa}"
+
+# Nếu tham số 1 là số (ví dụ: ./patch_existing_ipa.sh 3), coi đó là build number
+if [[ "$INPUT_ARG" =~ ^[0-9]+$ ]]; then
+  BUILD_ARG="$INPUT_ARG"
+  INPUT_ARG=""
+fi
+
+# Tự động tìm nguồn đầu vào thông minh
+INPUT_SOURCE=""
+if [ -n "$INPUT_ARG" ]; then
+  if [ -f "$INPUT_ARG" ] || [ "$(basename "$INPUT_ARG")" = "Payload" ] || [ -d "$INPUT_ARG/Payload" ]; then
+    INPUT_SOURCE="$INPUT_ARG"
+  elif [ -d "$INPUT_ARG/temp_vsg/Payload" ]; then
+    INPUT_SOURCE="$INPUT_ARG/temp_vsg/Payload"
+  elif [ -f "$INPUT_ARG/VSG-Group.ipa" ]; then
+    INPUT_SOURCE="$INPUT_ARG/VSG-Group.ipa"
+  elif [ -d "$INPUT_ARG" ]; then
+    FOUND_PAYLOAD=$(find "$INPUT_ARG" -name "Payload" -type d -maxdepth 3 2>/dev/null | head -n 1)
+    if [ -n "$FOUND_PAYLOAD" ]; then
+      INPUT_SOURCE="$FOUND_PAYLOAD"
+    else
+      FOUND_IPA=$(find "$INPUT_ARG" -name "*.ipa" -maxdepth 2 2>/dev/null | head -n 1)
+      if [ -n "$FOUND_IPA" ]; then
+        INPUT_SOURCE="$FOUND_IPA"
+      fi
+    fi
   fi
 fi
 
-if [ -z "$IPA_INPUT" ] || [ ! -f "$IPA_INPUT" ]; then
+if [ -z "$INPUT_SOURCE" ]; then
+  if [ -d "$HOME/Downloads/temp_vsg/Payload" ]; then
+    INPUT_SOURCE="$HOME/Downloads/temp_vsg/Payload"
+  elif [ -f "$HOME/Downloads/VSG-Group.ipa" ]; then
+    INPUT_SOURCE="$HOME/Downloads/VSG-Group.ipa"
+  elif [ -f "$DIR/VSG-Group.ipa" ]; then
+    INPUT_SOURCE="$DIR/VSG-Group.ipa"
+  fi
+fi
+
+if [ -z "$INPUT_SOURCE" ] || { [ ! -f "$INPUT_SOURCE" ] && [ ! -d "$INPUT_SOURCE" ]; }; then
   echo "=================================================================="
-  echo "Cách sử dụng: ./patch_existing_ipa.sh <duong-dan-file.ipa> [build_number] [ten_file_xuat]"
-  echo "Ví dụ:        ./patch_existing_ipa.sh ~/Downloads/VSG-Group.ipa 2 VSG-Group.ipa"
+  echo "Cách sử dụng: ./patch_existing_ipa.sh [build_number]"
+  echo "         hoặc ./patch_existing_ipa.sh [nguon_ipa_hoac_payload] [build_number]"
+  echo "Ví dụ:        ./patch_existing_ipa.sh 3"
   echo "=================================================================="
   exit 1
 fi
 
-# Tên file xuất ra (mặc định là VSG-Group.ipa)
-OUTPUT_NAME="${3:-VSG-Group.ipa}"
 OUTPUT_IPA="$DIR/$OUTPUT_NAME"
 OUTPUT_DOWNLOADS="$HOME/Downloads/$OUTPUT_NAME"
 
 echo "=================================================================="
-echo "BẮT ĐẦU XỬ LÝ IPA CHO APP VSG GROUP"
-echo "  File nguồn: $IPA_INPUT"
-echo "  File đích:   $OUTPUT_IPA"
+echo "BẮT ĐẦU XỬ LÝ ĐÓNG GÓI CHO APP VSG GROUP"
+echo "  Nguồn vào:  $INPUT_SOURCE"
+echo "  File xuất:  $OUTPUT_IPA"
 echo "=================================================================="
 
 WORK_DIR="$(mktemp -d)"
 trap 'rm -rf "$WORK_DIR"' EXIT
 
-echo "==> 1. Giải nén IPA..."
-unzip -q "$IPA_INPUT" -d "$WORK_DIR"
+# Trích xuất hoặc sao chép Payload
+if [ -d "$INPUT_SOURCE" ]; then
+  echo "==> 1. Chuẩn bị thư mục Payload từ $INPUT_SOURCE..."
+  if [ "$(basename "$INPUT_SOURCE")" = "Payload" ]; then
+    cp -r "$INPUT_SOURCE" "$WORK_DIR/Payload"
+  elif [ -d "$INPUT_SOURCE/Payload" ]; then
+    cp -r "$INPUT_SOURCE/Payload" "$WORK_DIR/Payload"
+  else
+    mkdir -p "$WORK_DIR/Payload"
+    cp -r "$INPUT_SOURCE" "$WORK_DIR/Payload/"
+  fi
+else
+  echo "==> 1. Giải nén file IPA: $INPUT_SOURCE..."
+  unzip -q "$INPUT_SOURCE" -d "$WORK_DIR"
+fi
 
 APP_PATH=$(find "$WORK_DIR/Payload" -name "*.app" -maxdepth 1 | head -n 1)
 if [ -z "$APP_PATH" ]; then
   echo "Lỗi: Không tìm thấy thư mục .app trong Payload!"
   exit 1
 fi
+export APP_PATH
+export ASSETS_CAR="$APP_PATH/Assets.car"
+export WORK_DIR
 echo "Đã tìm thấy app bundle: $(basename "$APP_PATH")"
 
-# 2. Xóa plugin gây lỗi nếu có
+# 2. Xóa plugin gây lỗi và gói icon vector Firefox (.icon)
 if [ -d "$APP_PATH/PlugIns/Sticker.appex" ]; then
   echo "==> Xóa Sticker.appex..."
   rm -rf "$APP_PATH/PlugIns/Sticker.appex"
 fi
 
+# Xóa các gói AppIcon.icon vector của Firefox (nguyên nhân gây hiển thị icon Firefox trên macOS và iOS 18)
+echo "==> Xóa toàn bộ gói icon vector Firefox (.icon)..."
+rm -rf "$APP_PATH"/AppIcon*.icon
+
+# Tạo và ghi đè toàn bộ các file PNG AppIcon vật lý từ icon VSG Group chuẩn (1024x1024)
+VSG_ICON_SRC="$DIR/firefox-ios/Client/Assets/AppIcons.xcassets/AppIcon.appiconset/appstore.png"
+if [ -f "$VSG_ICON_SRC" ]; then
+  echo "==> Ghi đè toàn bộ kích thước PNG AppIcon (Thông báo 20pt, Cài đặt 29pt, Spotlight 40pt, Màn hình chính 60pt/76pt/83.5pt)..."
+  # 20pt (Notification icon cho iPhone và iPad)
+  sips -z 40 40 "$VSG_ICON_SRC" --out "$APP_PATH/AppIcon20x20@2x.png" >/dev/null 2>&1 || true
+  sips -z 60 60 "$VSG_ICON_SRC" --out "$APP_PATH/AppIcon20x20@3x.png" >/dev/null 2>&1 || true
+  sips -z 20 20 "$VSG_ICON_SRC" --out "$APP_PATH/AppIcon20x20~ipad.png" >/dev/null 2>&1 || true
+  sips -z 40 40 "$VSG_ICON_SRC" --out "$APP_PATH/AppIcon20x20@2x~ipad.png" >/dev/null 2>&1 || true
+
+  # 29pt (Settings icon cho iPhone và iPad)
+  sips -z 58 58 "$VSG_ICON_SRC" --out "$APP_PATH/AppIcon29x29@2x.png" >/dev/null 2>&1 || true
+  sips -z 87 87 "$VSG_ICON_SRC" --out "$APP_PATH/AppIcon29x29@3x.png" >/dev/null 2>&1 || true
+  sips -z 29 29 "$VSG_ICON_SRC" --out "$APP_PATH/AppIcon29x29~ipad.png" >/dev/null 2>&1 || true
+  sips -z 58 58 "$VSG_ICON_SRC" --out "$APP_PATH/AppIcon29x29@2x~ipad.png" >/dev/null 2>&1 || true
+
+  # 40pt (Spotlight icon cho iPhone và iPad)
+  sips -z 80 80 "$VSG_ICON_SRC" --out "$APP_PATH/AppIcon40x40@2x.png" >/dev/null 2>&1 || true
+  sips -z 120 120 "$VSG_ICON_SRC" --out "$APP_PATH/AppIcon40x40@3x.png" >/dev/null 2>&1 || true
+  sips -z 40 40 "$VSG_ICON_SRC" --out "$APP_PATH/AppIcon40x40~ipad.png" >/dev/null 2>&1 || true
+  sips -z 80 80 "$VSG_ICON_SRC" --out "$APP_PATH/AppIcon40x40@2x~ipad.png" >/dev/null 2>&1 || true
+
+  # 60pt (Home Screen icon cho iPhone)
+  sips -z 120 120 "$VSG_ICON_SRC" --out "$APP_PATH/AppIcon60x60@2x.png" >/dev/null 2>&1 || true
+  sips -z 180 180 "$VSG_ICON_SRC" --out "$APP_PATH/AppIcon60x60@3x.png" >/dev/null 2>&1 || true
+
+  # 76pt & 83.5pt (Home Screen icon cho iPad & iPad Pro)
+  sips -z 76 76 "$VSG_ICON_SRC" --out "$APP_PATH/AppIcon76x76~ipad.png" >/dev/null 2>&1 || true
+  sips -z 152 152 "$VSG_ICON_SRC" --out "$APP_PATH/AppIcon76x76@2x~ipad.png" >/dev/null 2>&1 || true
+  sips -z 167 167 "$VSG_ICON_SRC" --out "$APP_PATH/AppIcon83.5x83.5@2x~ipad.png" >/dev/null 2>&1 || true
+fi
+
 # 3. Cập nhật Build Number và Tên hiển thị app
 MAIN_INFO_PLIST="$APP_PATH/Info.plist"
 CURRENT_BUILD=$(/usr/libexec/PlistBuddy -c "Print :CFBundleVersion" "$MAIN_INFO_PLIST" 2>/dev/null || echo "1")
-NEW_BUILD="$2"
-if [ -z "$NEW_BUILD" ]; then
-  # Tự động tăng build number nếu không chỉ định để tránh lỗi trùng build trên App Store
-  NEW_BUILD=$((CURRENT_BUILD + 1))
+
+# Xác định build number cao nhất đã từng upload (Build 1, 2 và 3 đã lên App Store Connect)
+BUILD_TRACK_FILE="$DIR/.build_number"
+LAST_BUILD=3
+if [ -f "$BUILD_TRACK_FILE" ]; then
+  READ_BUILD=$(cat "$BUILD_TRACK_FILE" 2>/dev/null || echo "3")
+  if [[ "$READ_BUILD" =~ ^[0-9]+$ ]] && [ "$READ_BUILD" -gt "$LAST_BUILD" ]; then
+    LAST_BUILD="$READ_BUILD"
+  fi
 fi
 
-echo "==> 2. Cập nhật thông tin phiên bản:"
+if [ -n "$BUILD_ARG" ]; then
+  NEW_BUILD="$BUILD_ARG"
+else
+  NEW_BUILD=$((LAST_BUILD + 1))
+fi
+echo "$NEW_BUILD" > "$BUILD_TRACK_FILE"
+
+echo "==> 2. Cập nhật thông tin phiên bản và cấu hình Icon:"
 echo "  CFBundleDisplayName: VSG Group"
 echo "  CFBundleVersion: $CURRENT_BUILD -> $NEW_BUILD"
 
 /usr/libexec/PlistBuddy -c "Set :CFBundleDisplayName VSG Group" "$MAIN_INFO_PLIST" 2>/dev/null || /usr/libexec/PlistBuddy -c "Add :CFBundleDisplayName string VSG Group" "$MAIN_INFO_PLIST" 2>/dev/null || true
 /usr/libexec/PlistBuddy -c "Set :CFBundleName VSG Group" "$MAIN_INFO_PLIST" 2>/dev/null || /usr/libexec/PlistBuddy -c "Add :CFBundleName string VSG Group" "$MAIN_INFO_PLIST" 2>/dev/null || true
 
+# Xóa toàn bộ icon phụ của Firefox (Alternate Icons) để iOS không bao giờ lấy icon vàng cũ
+/usr/libexec/PlistBuddy -c "Delete :CFBundleIcons:CFBundleAlternateIcons" "$MAIN_INFO_PLIST" 2>/dev/null || true
+/usr/libexec/PlistBuddy -c "Delete :CFBundleIcons~ipad:CFBundleAlternateIcons" "$MAIN_INFO_PLIST" 2>/dev/null || true
+
+# Khai báo rõ các kích thước icon chính (đặc biệt là AppIcon20x20 cho Thông báo)
+/usr/libexec/PlistBuddy -c "Add :CFBundleIcons:CFBundlePrimaryIcon:CFBundleIconFiles: string AppIcon20x20" "$MAIN_INFO_PLIST" 2>/dev/null || true
+/usr/libexec/PlistBuddy -c "Add :CFBundleIcons:CFBundlePrimaryIcon:CFBundleIconFiles: string AppIcon29x29" "$MAIN_INFO_PLIST" 2>/dev/null || true
+/usr/libexec/PlistBuddy -c "Add :CFBundleIcons:CFBundlePrimaryIcon:CFBundleIconFiles: string AppIcon40x40" "$MAIN_INFO_PLIST" 2>/dev/null || true
+/usr/libexec/PlistBuddy -c "Add :CFBundleIcons~ipad:CFBundlePrimaryIcon:CFBundleIconFiles: string AppIcon20x20" "$MAIN_INFO_PLIST" 2>/dev/null || true
+/usr/libexec/PlistBuddy -c "Add :CFBundleIcons~ipad:CFBundlePrimaryIcon:CFBundleIconFiles: string AppIcon29x29" "$MAIN_INFO_PLIST" 2>/dev/null || true
+/usr/libexec/PlistBuddy -c "Add :CFBundleIcons~ipad:CFBundlePrimaryIcon:CFBundleIconFiles: string AppIcon40x40" "$MAIN_INFO_PLIST" 2>/dev/null || true
+
 find "$APP_PATH" -name "Info.plist" | while read -r plist; do
   /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $NEW_BUILD" "$plist" 2>/dev/null || true
 done
 
-# 4. Sửa lỗi Assets.car (ITMS-90717: Loại bỏ Alpha trên icon 1024x1024)
+# 4. Sửa lỗi Assets.car (ITMS-90717: Nhúng 100% icon VSG Group vào Assets.car với cờ Opaque: True)
 ASSETS_CAR="$APP_PATH/Assets.car"
+PRISTINE_CAR="$HOME/Downloads/temp_vsg/Payload/Client.app/Assets.car"
+
+if [ -f "$PRISTINE_CAR" ]; then
+  echo "==> Khôi phục cấu trúc Assets.car gốc..."
+  cp "$PRISTINE_CAR" "$ASSETS_CAR"
+fi
+
 if [ -f "$ASSETS_CAR" ]; then
-  echo "==> 3. Vá Assets.car để loại bỏ alpha trên AppIcon (ITMS-90717)..."
-  python3 - << PYEOF
-import subprocess
+  echo "==> 3. Nhúng 100% icon VSG Group vào Assets.car (Chế độ Sáng, Tối, Tinted - chuẩn LZFSE KCBC, Opaque: True)..."
+  VSG_ICON_SRC="$VSG_ICON_SRC" VSG_DARK_SRC="$DIR/firefox-ios/Client/Assets/AppIcons.xcassets/AppIcon.appiconset/appstore-dark.png" ASSETS_CAR="$ASSETS_CAR" python3 - << 'PYEOF'
+import os, sys, ctypes, struct, zlib
 
-car_path = "$ASSETS_CAR"
-with open(car_path, 'rb') as f:
-    data = bytearray(f.read())
+car_path = os.environ.get("ASSETS_CAR")
+vsg_light = os.environ.get("VSG_ICON_SRC")
+vsg_dark = os.environ.get("VSG_DARK_SRC")
 
-def replace_rendition(data, src_name, dst_name):
-    p_src = data.find(src_name.encode())
-    if p_src == -1:
-        return 0
-    istc_src = data.rfind(b"ISTC", max(0, p_src - 60), p_src)
-    payload_len = int.from_bytes(data[istc_src + 0xb4 : istc_src + 0xb8], "little")
-    src_rend = bytearray(data[istc_src : istc_src + 0xb8 + payload_len])
-    
-    src_name_len = int.from_bytes(src_rend[36:40], "little")
-    dst_bytes = dst_name.encode() + b"\x00"
-    src_rend[36:40] = len(dst_name).to_bytes(4, "little")
-    padded = dst_bytes + b"\x00" * (src_name_len - len(dst_bytes))
-    src_rend[40:40+len(padded)] = padded
-    
+lib = ctypes.cdll.LoadLibrary("/usr/lib/libcompression.dylib")
+encode = lib.compression_encode_buffer
+encode.argtypes = [ctypes.c_void_p, ctypes.c_size_t, ctypes.c_void_p, ctypes.c_size_t, ctypes.c_void_p, ctypes.c_int]
+encode.restype = ctypes.c_size_t
+
+def png_to_kcbc(png_path):
+    if not png_path or not os.path.exists(png_path):
+        return None
+    with open(png_path, "rb") as f:
+        png_data = f.read()
+
+    w, h, bit_depth, color_type = struct.unpack(">IIBB", png_data[16:26])
+    idat = bytearray()
+    pos = 8
+    while pos < len(png_data):
+        length, ctype = struct.unpack(">I4s", png_data[pos:pos+8])
+        if ctype == b"IDAT":
+            idat.extend(png_data[pos+8:pos+8+length])
+        pos += 8 + length + 4
+
+    decompressed = zlib.decompress(idat)
+    bpp = 3 if color_type == 2 else 4
+    line_len = 1 + w * bpp
+    raw_pixels = bytearray(w * h * bpp)
+    stride = w * bpp
+
+    for y in range(h):
+        filter_type = decompressed[y * line_len]
+        curr = decompressed[y * line_len + 1 : (y + 1) * line_len]
+        out_line = bytearray(stride)
+        prev = raw_pixels[(y - 1) * stride : y * stride] if y > 0 else bytearray(stride)
+        for x in range(stride):
+            a = out_line[x - bpp] if x >= bpp else 0
+            b = prev[x]
+            c = prev[x - bpp] if x >= bpp else 0
+            if filter_type == 0: val = curr[x]
+            elif filter_type == 1: val = (curr[x] + a) & 0xff
+            elif filter_type == 2: val = (curr[x] + b) & 0xff
+            elif filter_type == 3: val = (curr[x] + (a + b) // 2) & 0xff
+            elif filter_type == 4:
+                p = a + b - c
+                pa = abs(p - a); pb = abs(p - b); pc = abs(p - c)
+                if pa <= pb and pa <= pc: pr = a
+                elif pb <= pc: pr = b
+                else: pr = c
+                val = (curr[x] + pr) & 0xff
+            else: val = curr[x]
+            out_line[x] = val
+        raw_pixels[y * stride : (y + 1) * stride] = out_line
+
+    bgra = bytearray(w * h * 4)
+    for i in range(w * h):
+        if bpp == 3:
+            r = raw_pixels[i * 3]; g = raw_pixels[i * 3 + 1]; b = raw_pixels[i * 3 + 2]
+        else:
+            r = raw_pixels[i * 4]; g = raw_pixels[i * 4 + 1]; b = raw_pixels[i * 4 + 2]
+        bgra[i * 4] = b
+        bgra[i * 4 + 1] = g
+        bgra[i * 4 + 2] = r
+        bgra[i * 4 + 3] = 0xff
+
+    chunk_rows = [341, 341, 341, 1]
+    row_offset = 0
+    kcbc_payload = bytearray()
+    for rows in chunk_rows:
+        raw_chunk = bgra[row_offset * 1024 * 4 : (row_offset + rows) * 1024 * 4]
+        dst = ctypes.create_string_buffer(len(raw_chunk))
+        c_len = encode(dst, len(raw_chunk), bytes(raw_chunk), len(raw_chunk), None, 0x801)
+        chunk_data = dst.raw[:c_len]
+        hdr = b"KCBC" + struct.pack("<IIII", 0, 0, rows, c_len)
+        kcbc_payload.extend(hdr + chunk_data)
+        row_offset += rows
+    return kcbc_payload
+
+kcbc_light = png_to_kcbc(vsg_light)
+kcbc_dark = png_to_kcbc(vsg_dark) or kcbc_light
+
+with open(car_path, "rb") as f:
+    car_data = bytearray(f.read())
+
+targets = [
+    (b"appstore.png", kcbc_light),
+    (b"appstore-dark.png", kcbc_dark),
+    (b"appstore-tinted.png", kcbc_dark)
+]
+
+total_patched = 0
+for target_name, payload in targets:
     pos = 0
     cnt = 0
     while True:
-        p = data.find(dst_name.encode(), pos)
+        p = car_data.find(target_name, pos)
         if p == -1:
             break
-        istc = data.rfind(b"ISTC", max(0, p - 60), p)
-        if istc != -1 and istc != istc_src:
-            data[istc : istc + len(src_rend)] = src_rend
-            cnt += 1
+        istc = car_data.rfind(b"ISTC", max(0, p - 60), p)
+        if istc != -1:
+            old_plen = int.from_bytes(car_data[istc + 0xb4 : istc + 0xb8], "little")
+            hdr_120 = bytearray(car_data[istc + 0xb8 : istc + 0xb8 + 120])
+            hdr_120[0x6c] = 0x03 # Opaque = true (loại bỏ alpha ITMS-90717)
+            new_payload = hdr_120 + payload
+            new_plen = len(new_payload)
+            next_istc = car_data.find(b"ISTC", istc + 4)
+            available = next_istc - (istc + 0xb8) if next_istc != -1 else old_plen
+            if new_plen <= available:
+                car_data[istc + 0xb4 : istc + 0xb8] = new_plen.to_bytes(4, "little")
+                car_data[istc + 0xb8 : istc + 0xb8 + new_plen] = new_payload
+                cnt += 1
         pos = p + 1
-    return cnt
+    total_patched += cnt
 
-c1 = replace_rendition(data, "yellow-light-min.png", "appstore.png")
-c2 = replace_rendition(data, "legacy-icon-dark-min.png", "appstore-dark.png")
-c3 = replace_rendition(data, "AppIcon_Alt_Tinted.png", "appstore-tinted.png")
+with open(car_path, "wb") as f:
+    f.write(car_data)
 
-with open(car_path, 'wb') as f:
-    f.write(data)
-print(f"  -> Đã vá thành công {c1 + c2 + c3} rendition icon sang Opaque: True")
+print(f"  -> Đã nhúng 100% icon VSG Group vào {total_patched} vị trí (Light, Dark, Tinted) trong Assets.car!")
 PYEOF
 fi
 
-# 5. Cập nhật SDK lên iOS 26 trong toàn bộ Info.plist (ITMS-90725)
-echo "==> 4. Cập nhật SDK lên iOS 26 trong Info.plist (ITMS-90725)..."
+# 5. Cập nhật SDK lên iOS 26 trong toàn bộ Info.plist (ITMS-90725 & ITMS-90208)
+echo "==> 4. Cập nhật SDK lên iOS 26 trong Info.plist (ITMS-90725, ITMS-90208)..."
 find "$APP_PATH" -name "Info.plist" | while read -r plist; do
+  /usr/libexec/PlistBuddy -c "Set :MinimumOSVersion 15.0" "$plist" 2>/dev/null || /usr/libexec/PlistBuddy -c "Add :MinimumOSVersion string 15.0" "$plist" 2>/dev/null || true
   /usr/libexec/PlistBuddy -c "Set :DTPlatformVersion 26.0" "$plist" 2>/dev/null || /usr/libexec/PlistBuddy -c "Add :DTPlatformVersion string 26.0" "$plist" 2>/dev/null || true
   /usr/libexec/PlistBuddy -c "Set :DTSDKName iphoneos26.0" "$plist" 2>/dev/null || /usr/libexec/PlistBuddy -c "Add :DTSDKName string iphoneos26.0" "$plist" 2>/dev/null || true
   /usr/libexec/PlistBuddy -c "Set :DTSDKBuild 26A528" "$plist" 2>/dev/null || /usr/libexec/PlistBuddy -c "Add :DTSDKBuild string 26A528" "$plist" 2>/dev/null || true
@@ -140,12 +335,12 @@ find "$APP_PATH" -name "Info.plist" | while read -r plist; do
   /usr/libexec/PlistBuddy -c "Set :DTXcodeBuild 26A528" "$plist" 2>/dev/null || /usr/libexec/PlistBuddy -c "Add :DTXcodeBuild string 26A528" "$plist" 2>/dev/null || true
 done
 
-# 6. Cập nhật Mach-O binary bằng vtool (ITMS-90725)
-echo "==> 5. Cập nhật Mach-O LC_BUILD_VERSION sang iOS 26.0 bằng vtool..."
-python3 - << PYEOF
+# 6. Cập nhật Mach-O binary bằng vtool (ITMS-90725 & ITMS-90208)
+echo "==> 5. Cập nhật Mach-O LC_BUILD_VERSION sang iOS 15.0 minos / 26.0 SDK bằng vtool..."
+APP_PATH="$APP_PATH" python3 - << 'PYEOF'
 import os, subprocess, re
 
-app_path = "$APP_PATH"
+app_path = os.environ.get("APP_PATH")
 count = 0
 for root, dirs, files in os.walk(app_path):
     for f in files:
@@ -158,8 +353,8 @@ for root, dirs, files in os.walk(app_path):
             if mag in (b'\xfe\xed\xfa\xce', b'\xfe\xed\xfa\xcf', b'\xce\xfa\xed\xfe', b'\xcf\xfa\xed\xfe', b'\xca\xfe\xba\xbe'):
                 show = subprocess.run(["vtool", "-show-build", p], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True).stdout
                 if "platform ios" in show.lower():
-                    m = re.search(r'minos\s+([\d\.]+)', show)
-                    minos = m.group(1) if m else "15.0"
+                    # Đặt minos 15.0 để khớp chính xác với MinimumOSVersion 15.0 trong Info.plist (tránh lỗi 90208)
+                    minos = "15.0"
                     temp_out = p + ".vtool"
                     res = subprocess.run(["vtool", "-set-build-version", "ios", minos, "26.0", "-replace", "-output", temp_out, p], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
                     if res.returncode == 0 and os.path.exists(temp_out):
@@ -168,7 +363,7 @@ for root, dirs, files in os.walk(app_path):
                         count += 1
         except Exception:
             pass
-print(f"  -> Đã vá {count} binary sang SDK 26.0")
+print(f"  -> Đã vá {count} binary sang minos 15.0 / SDK 26.0")
 PYEOF
 
 # 7. Xóa các thuộc tính mở rộng và tệp rác macOS
@@ -239,23 +434,17 @@ echo "  -> Chữ ký hoàn toàn hợp lệ!"
 # 10. Đóng gói lại thành IPA
 echo "==> 9. Đóng gói $OUTPUT_NAME..."
 cd "$WORK_DIR"
-rm -f "$OUTPUT_IPA" "$OUTPUT_DOWNLOADS"
+rm -f "$OUTPUT_IPA" "$OUTPUT_DOWNLOADS" "$DIR/test.ipa" "$HOME/Downloads/test.ipa"
 zip -r -y -q "$OUTPUT_IPA" Payload
 cp "$OUTPUT_IPA" "$OUTPUT_DOWNLOADS"
-
-# Nếu tên file khác test.ipa, đồng bộ cả test.ipa để tiện test
-if [ "$OUTPUT_NAME" != "test.ipa" ]; then
-  cp "$OUTPUT_IPA" "$DIR/test.ipa"
-  cp "$OUTPUT_IPA" "$HOME/Downloads/test.ipa"
-fi
 
 SIZE_MB=$(ls -lh "$OUTPUT_IPA" | awk '{print $5}')
 echo "=================================================================="
 echo "THÀNH CÔNG! ĐÃ ĐÓNG GÓI XONG APP VSG GROUP"
 echo "  Phiên bản: 161.0 (Build $NEW_BUILD)"
+echo "  Icon: 100% LOGO VSG GROUP (ĐÃ NHÚNG VÀ BẬT OPAQUE: TRUE)"
 echo "  Kích thước: $SIZE_MB"
 echo "  Vị trí file sẵn sàng:"
 echo "    1. $OUTPUT_IPA"
 echo "    2. $OUTPUT_DOWNLOADS"
 echo "=================================================================="
-echo "Bây giờ bạn có thể mở Transporter và kéo thả file $OUTPUT_NAME để gửi lên App Store Connect!"

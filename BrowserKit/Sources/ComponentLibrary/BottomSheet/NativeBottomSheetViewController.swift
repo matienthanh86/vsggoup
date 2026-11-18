@@ -39,7 +39,7 @@ public class NativeBottomSheetViewController: UIViewController,
             self?.dismiss(animated: true)
         }), for: .touchUpInside)
         if #available(iOS 26, *) {
-            $0.configuration = .prominentClearGlass()
+            $0.configuration = .plain()
         } else {
             $0.configuration = .filled()
             $0.configuration?.cornerStyle = .capsule

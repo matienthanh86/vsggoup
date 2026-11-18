@@ -26,6 +26,8 @@ public final class AgentNotiFeature: @unchecked Sendable {
     private var isConnecting = false
     private var lastConnectAttemptTime: TimeInterval = 0
     private var lastAttemptedTicket: String?
+    private var lastHandledCallKey: String = ""
+    private var lastHandledCallTime: Date = .distantPast
 
     public init(apiClient: AgentNotiApiClient? = nil) {
         self.apiClient = apiClient ?? AgentNotiApiClient()
@@ -240,15 +242,28 @@ public final class AgentNotiFeature: @unchecked Sendable {
         }
 
         if isCallCancel {
+            AgentNotiAudioPlayer.shared.stopCallRingtone()
             AgentNotiAudioPlayer.shared.playEndCallSound()
             DispatchQueue.main.async {
                 NotificationCenter.default.post(name: NSNotification.Name("AgentNotiRemoteCallEnded"), object: nil)
                 IncomingCallViewController.activeInstance?.dismiss(animated: true)
+                self.removeDeliveredCallNotification(callKey: callKey)
             }
             return
         }
 
         let isCall = eventType.caseInsensitiveCompare("call") == .orderedSame
+
+        if isCall {
+            let now = Date()
+            if !callKey.isEmpty && callKey == lastHandledCallKey && now.timeIntervalSince(lastHandledCallTime) < 3.0 {
+                // Ignore duplicate incoming call notification within 3 seconds
+                return
+            }
+            lastHandledCallKey = callKey
+            lastHandledCallTime = now
+        }
+
         let sender = (userInfo["sender"] as? String) ?? (userInfo["callerName"] as? String)
         let room = userInfo["room"] as? String
         let isGroup = (userInfo["isGroup"] as? String)?.lowercased() == "true"
@@ -269,24 +284,83 @@ public final class AgentNotiFeature: @unchecked Sendable {
             body = "Cuộc gọi đến..."
         }
 
-        let defaultBase = getSavedBaseWebUrl()
-        let url = (userInfo["targetUrl"] as? String) ??
-            (userInfo["url"] as? String) ??
-            (userInfo["openUrl"] as? String) ??
-            defaultBase
+        let finalUrl = buildCallUrl(userInfo: userInfo)
 
         if isCall {
-            AgentNotiAudioPlayer.shared.startCallRingtone()
+            let timeoutSeconds: TimeInterval = {
+                if let timeoutStr = userInfo["timeout"] as? String, let t = Double(timeoutStr), t > 0 {
+                    return t
+                }
+                if let tNum = userInfo["timeout"] as? NSNumber, tNum.doubleValue > 0 {
+                    return tNum.doubleValue
+                }
+                return 45.0 // Mặc định 45s tự ngắt nếu không nghe máy
+            }()
+
+            AgentNotiAudioPlayer.shared.startCallRingtone(timeoutInterval: timeoutSeconds) { [weak self] in
+                DispatchQueue.main.async {
+                    NotificationCenter.default.post(name: NSNotification.Name("AgentNotiRemoteCallEnded"), object: nil)
+                    IncomingCallViewController.activeInstance?.dismiss(animated: true)
+                    self?.removeDeliveredCallNotification(callKey: callKey)
+                }
+                self?.declineCall(callKey: callKey)
+            }
+
             DispatchQueue.main.async {
-                self.presentIncomingCallScreen(caller: title ?? "Cuộc gọi đến", callUrl: url, callKey: callKey)
+                self.presentIncomingCallScreen(caller: title ?? "Cuộc gọi đến", callUrl: finalUrl, callKey: callKey)
             }
         } else {
-            showLocalNotification(title: title ?? "DINO", body: body, url: url)
+            showLocalNotification(title: title ?? "DINO", body: body, url: finalUrl)
+        }
+    }
+
+    public func buildCallUrl(userInfo: [AnyHashable: Any]) -> String {
+        let eventType = (userInfo["eventType"] as? String) ?? (userInfo["type"] as? String) ?? "message"
+        let callKey = (userInfo["callId"] as? String) ??
+            (userInfo["roomToken"] as? String) ??
+            (userInfo["room"] as? String) ??
+            (userInfo["objectId"] as? String) ?? ""
+        let room = userInfo["room"] as? String
+        let defaultBase = getSavedBaseWebUrl()
+        let tokenRoom = !callKey.isEmpty ? callKey : (room ?? "")
+
+        if eventType.caseInsensitiveCompare("call") == .orderedSame {
+            return "\(defaultBase)?path=call/\(tokenRoom)&param=callNoti"
+        } else if eventType.caseInsensitiveCompare("message") == .orderedSame && !tokenRoom.isEmpty {
+            return "\(defaultBase)?path=call/\(tokenRoom)&param=messageNoti"
+        } else {
+            return (userInfo["targetUrl"] as? String) ??
+                (userInfo["url"] as? String) ??
+                (userInfo["openUrl"] as? String) ??
+                defaultBase
+        }
+    }
+
+    public func removeDeliveredCallNotification(callKey: String) {
+        UNUserNotificationCenter.current().getDeliveredNotifications { notifications in
+            let matchingIds = notifications.filter { notification in
+                let userInfo = notification.request.content.userInfo
+                let key = (userInfo["callId"] as? String) ??
+                    (userInfo["roomToken"] as? String) ??
+                    (userInfo["room"] as? String) ??
+                    (userInfo["objectId"] as? String) ?? ""
+                return (!callKey.isEmpty && key == callKey) ||
+                       (!callKey.isEmpty && notification.request.identifier.contains(callKey)) ||
+                       (notification.request.content.categoryIdentifier == "DINO_INCOMING_CALL")
+            }.map { $0.request.identifier }
+
+            if !matchingIds.isEmpty {
+                UNUserNotificationCenter.current().removeDeliveredNotifications(withIdentifiers: matchingIds)
+            }
         }
     }
 
     @MainActor
     private func presentIncomingCallScreen(caller: String, callUrl: String, callKey: String) {
+        if IncomingCallViewController.activeInstance != nil {
+            return
+        }
+
         guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
               let rootVC = windowScene.windows.first(where: { $0.isKeyWindow })?.rootViewController else {
             return
@@ -294,7 +368,13 @@ public final class AgentNotiFeature: @unchecked Sendable {
 
         var topVC = rootVC
         while let presented = topVC.presentedViewController {
+            if presented is IncomingCallViewController || presented.isBeingPresented || presented.isBeingDismissed {
+                return
+            }
             topVC = presented
+        }
+        if topVC is IncomingCallViewController {
+            return
         }
 
         let callVC = IncomingCallViewController()

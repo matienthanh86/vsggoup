@@ -14,6 +14,17 @@ public final class IncomingCallViewController: UIViewController {
     public var callKey: String = ""
     public var onCallAccepted: ((String) -> Void)?
     public var onCallDeclined: ((String) -> Void)?
+    private var callTimeoutTimer: Timer?
+
+    public init() {
+        super.init(nibName: nil, bundle: nil)
+        Self.activeInstance = self
+    }
+
+    public required init?(coder: NSCoder) {
+        super.init(coder: coder)
+        Self.activeInstance = self
+    }
 
     private let avatarImageView: UIImageView = {
         let iv = UIImageView()
@@ -84,10 +95,17 @@ public final class IncomingCallViewController: UIViewController {
             name: NSNotification.Name("AgentNotiRemoteCallEnded"),
             object: nil
         )
+
+        // Hẹn giờ 45s tự ngắt nếu không thao tác
+        callTimeoutTimer = Timer.scheduledTimer(withTimeInterval: 45.0, repeats: false) { [weak self] _ in
+            self?.handleTimeout()
+        }
     }
 
     public override func viewDidDisappear(_ animated: Bool) {
         super.viewDidDisappear(animated)
+        callTimeoutTimer?.invalidate()
+        callTimeoutTimer = nil
         if Self.activeInstance === self {
             Self.activeInstance = nil
         }
@@ -128,18 +146,33 @@ public final class IncomingCallViewController: UIViewController {
     }
 
     @objc private func handleDecline() {
+        callTimeoutTimer?.invalidate()
+        callTimeoutTimer = nil
         AgentNotiAudioPlayer.shared.playEndCallSound()
+        AgentNotiFeature.shared.removeDeliveredCallNotification(callKey: callKey)
         onCallDeclined?(callKey)
         dismiss(animated: true)
     }
 
     @objc private func handleAccept() {
+        callTimeoutTimer?.invalidate()
+        callTimeoutTimer = nil
         AgentNotiAudioPlayer.shared.stopCallRingtone()
+        AgentNotiFeature.shared.removeDeliveredCallNotification(callKey: callKey)
         onCallAccepted?(callUrl)
         dismiss(animated: true)
     }
 
+    @objc private func handleTimeout() {
+        AgentNotiAudioPlayer.shared.playEndCallSound()
+        AgentNotiFeature.shared.removeDeliveredCallNotification(callKey: callKey)
+        onCallDeclined?(callKey)
+        dismiss(animated: true)
+    }
+
     @objc private func remoteCallEnded() {
+        callTimeoutTimer?.invalidate()
+        callTimeoutTimer = nil
         dismiss(animated: true)
     }
 }

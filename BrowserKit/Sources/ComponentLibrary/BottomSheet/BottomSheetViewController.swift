@@ -211,7 +211,7 @@ public class BottomSheetViewController: UIViewController,
 
     @available(iOS 26.0, *)
     private func createGlassEffect() -> UIVisualEffect {
-        let glassEffect = UIGlassEffect()
+        let glassEffect = Common.UIGlassEffect()
         let theme = themeManager.getCurrentTheme(for: windowUUID)
         glassEffect.tintColor = theme.colors.layer2.withAlphaComponent(UX.glassAlpha)
         glassEffect.isInteractive = true

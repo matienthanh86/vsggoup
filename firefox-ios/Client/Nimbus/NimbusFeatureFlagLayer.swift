@@ -512,7 +512,7 @@ final class NimbusFeatureFlagLayer: NimbusFeatureFlagLayerProviding, Sendable {
     }
 
     func checkStartAtHomeConfiguration() -> StartAtHome {
-        return nimbus.features.startAtHomeFeature.value().setting
+        return .disabled
     }
 
     private func checkCustomReaderModeSchemeFeature() -> Bool {

@@ -4,6 +4,11 @@ on:
   push:
     branches: [ main, master ]
   workflow_dispatch:
+    inputs:
+      build_number:
+        description: 'Build number (phải > 9, ví dụ 10, 11)'
+        required: false
+        default: ''
 
 env:
   browser: firefox-ios
@@ -32,10 +37,7 @@ jobs:
         run: |
           echo "Available Xcode versions:"
           ls -d /Applications/Xcode* || true
-          TARGET_XCODE=$(ls -d /Applications/Xcode_2*.app 2>/dev/null | sort -V | tail -n 1)
-          if [ -z "$TARGET_XCODE" ]; then
-            TARGET_XCODE=$(ls -d /Applications/Xcode_16*.app 2>/dev/null | sort -V | tail -n 1)
-          fi
+          TARGET_XCODE=$(ls -d /Applications/Xcode_16*.app 2>/dev/null | sort -V | tail -n 1)
           if [ -z "$TARGET_XCODE" ]; then
             TARGET_XCODE=$(ls -d /Applications/Xcode*.app 2>/dev/null | sort -V | tail -n 1)
           fi
@@ -164,11 +166,16 @@ jobs:
           fi
           echo "Found app at: $APP_PATH"
 
-          # Remove Sticker.appex (Mozilla iMessage sticker pack) which causes ITMS-90085 "No architectures in binary"
-          if [ -d "$APP_PATH/PlugIns/Sticker.appex" ]; then
-            echo "Removing Sticker.appex to avoid Transporter 90085 lipo error..."
-            rm -rf "$APP_PATH/PlugIns/Sticker.appex"
+          # Remove PlugIns folder entirely because only 1 provisioning profile is provided for com.vsg.group.browser.
+          # App Extensions (CredentialProvider, ActionExtension, WidgetKit, etc.) require separate App Store provisioning profiles
+          # and App IDs registered on Apple Developer portal. Without them, Apple Transporter rejects with ITMS-90166 and ITMS-90729.
+          if [ -d "$APP_PATH/PlugIns" ]; then
+            echo "Removing PlugIns to prevent Transporter ITMS-90166 / ITMS-90729 missing entitlement errors on extensions..."
+            rm -rf "$APP_PATH/PlugIns"
           fi
+
+          # Remove Firefox vector .icon packages which override the VSG Group icon on macOS and iOS 18
+          rm -rf "$APP_PATH"/AppIcon*.icon
 
           # Fix permissions on non-binary files so Transporter/swinfo doesn't treat them as executables
           find "$APP_PATH" -type f \( -name "*.yaml" -o -name "*.yml" -o -name "*.json" -o -name "*.plist" -o -name "*.png" -o -name "*.car" \) -exec chmod 644 {} +
@@ -188,9 +195,28 @@ jobs:
           find "$APP_PATH" -name "._*" -delete 2>/dev/null || true
           dot_clean -m "$APP_PATH" 2>/dev/null || true
 
-          # Patch SDK version to iOS 26+ to satisfy Transporter ITMS-90725 requirement
-          echo "Patching SDK version in Info.plist to iOS 26 SDK..."
+          # Determine App Store Build Number (CFBundleVersion must be > 9)
+          TRACKED_BUILD=$(cat .build_number 2>/dev/null || echo "10")
+          INPUT_BUILD="${{ inputs.build_number }}"
+          if [ -n "$INPUT_BUILD" ]; then
+            TARGET_BUILD="$INPUT_BUILD"
+          else
+            TARGET_BUILD="$TRACKED_BUILD"
+            if [ -z "$TARGET_BUILD" ] || [ "$TARGET_BUILD" -le 9 ]; then
+              TARGET_BUILD=10
+            fi
+          fi
+          echo "Target Build Number (CFBundleVersion): $TARGET_BUILD"
+          echo "APP_BUILD_NUMBER=$TARGET_BUILD" >> $GITHUB_ENV
+
+          # Patch Display Name, Build Number, and SDK version in Info.plist
+          echo "Patching CFBundleVersion ($TARGET_BUILD) and SDK version in Info.plist..."
+          /usr/libexec/PlistBuddy -c "Set :CFBundleDisplayName VSG Group" "$APP_PATH/Info.plist" 2>/dev/null || /usr/libexec/PlistBuddy -c "Add :CFBundleDisplayName string VSG Group" "$APP_PATH/Info.plist" 2>/dev/null || true
+          /usr/libexec/PlistBuddy -c "Set :CFBundleName VSG Group" "$APP_PATH/Info.plist" 2>/dev/null || /usr/libexec/PlistBuddy -c "Add :CFBundleName string VSG Group" "$APP_PATH/Info.plist" 2>/dev/null || true
+
           find "$APP_PATH" -name "Info.plist" | while read -r plist; do
+            /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $TARGET_BUILD" "$plist" 2>/dev/null || /usr/libexec/PlistBuddy -c "Add :CFBundleVersion string $TARGET_BUILD" "$plist" 2>/dev/null || true
+            /usr/libexec/PlistBuddy -c "Set :MinimumOSVersion 15.0" "$plist" 2>/dev/null || /usr/libexec/PlistBuddy -c "Add :MinimumOSVersion string 15.0" "$plist" 2>/dev/null || true
             /usr/libexec/PlistBuddy -c "Set :DTPlatformVersion 26.0" "$plist" 2>/dev/null || /usr/libexec/PlistBuddy -c "Add :DTPlatformVersion string 26.0" "$plist" 2>/dev/null || true
             /usr/libexec/PlistBuddy -c "Set :DTSDKName iphoneos26.0" "$plist" 2>/dev/null || /usr/libexec/PlistBuddy -c "Add :DTSDKName string iphoneos26.0" "$plist" 2>/dev/null || true
             /usr/libexec/PlistBuddy -c "Set :DTSDKBuild 26A528" "$plist" 2>/dev/null || /usr/libexec/PlistBuddy -c "Add :DTSDKBuild string 26A528" "$plist" 2>/dev/null || true
@@ -201,9 +227,9 @@ jobs:
           # Update Mach-O LC_BUILD_VERSION SDK version to 26.0 if vtool is available
           find "$APP_PATH" -type f -perm +111 | while read -r bin; do
             if file "$bin" | grep -q "Mach-O"; then
-              if vtool -show-build "$bin" 2>/dev/null | grep -q "platform iOS"; then
+              if vtool -show-build "$bin" 2>/dev/null | grep -qi "platform ios"; then
                 echo "Updating Mach-O SDK version to 26.0 in $bin"
-                vtool -set-build-version ios 16.0 26.0 -replace -output "$bin.vtool" "$bin" 2>/dev/null && mv "$bin.vtool" "$bin" || true
+                vtool -set-build-version ios 15.0 26.0 -replace -output "$bin.vtool" "$bin" 2>/dev/null && mv "$bin.vtool" "$bin" || true
               fi
             fi
           done
@@ -232,14 +258,13 @@ jobs:
             /usr/libexec/PlistBuddy -x -c 'Print :Entitlements' "$RUNNER_TEMP/profile.plist" > "$RUNNER_TEMP/entitlements.plist"
             /usr/libexec/PlistBuddy -c "Delete :com.apple.security.get-task-allow" "$RUNNER_TEMP/entitlements.plist" 2>/dev/null || true
 
-            # Remove rogue embedded provisioning profiles inside extensions if any
-            find "$APP_PATH/PlugIns" -name "embedded.mobileprovision" -exec rm -f {} + 2>/dev/null || true
-
-            # Sign frameworks, plugins, and embedded extensions first with Apple timestamp
-            find "$APP_PATH" -depth \( -name "*.framework" -o -name "*.dylib" -o -name "*.appex" \) | while read -r item; do
-              echo "Signing: $item"
-              codesign --force --sign "$SIGNING_IDENTITY" --keychain "$KEYCHAIN_PATH" --timestamp "$item" || true
-            done
+            # Sign frameworks first with Apple timestamp
+            if [ -d "$APP_PATH/Frameworks" ]; then
+              find "$APP_PATH/Frameworks" -depth \( -name "*.framework" -o -name "*.dylib" \) | while read -r item; do
+                echo "Signing: $item"
+                codesign --force --sign "$SIGNING_IDENTITY" --keychain "$KEYCHAIN_PATH" --timestamp "$item" || true
+              done
+            fi
 
             # Sign main app bundle with entitlements, DER encoding, and Apple timestamp
             echo "Signing main app bundle with entitlements and Apple timestamp..."
@@ -263,28 +288,23 @@ jobs:
 
           cp -r "$APP_PATH" build/Payload/
           cd build
-          zip -r -y test.ipa Payload
-          cp test.ipa VSG-Group.ipa
-          ls -lh test.ipa VSG-Group.ipa
+          zip -r -y -q VSG-Group.ipa Payload
+          ls -lh VSG-Group.ipa
 
       - name: Upload IPA Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: test-ipa
-          path: |
-            build/test.ipa
-            build/VSG-Group.ipa
+          name: VSG-Group-ipa
+          path: build/VSG-Group.ipa
           retention-days: 14
 
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         if: success()
         with:
-          tag_name: "v161.0-b${{ github.run_number }}"
-          name: "VSG Group iOS v161.0 Build ${{ github.run_number }}"
-          files: |
-            build/test.ipa
-            build/VSG-Group.ipa
+          tag_name: "v161.0-b${{ env.APP_BUILD_NUMBER || github.run_number }}"
+          name: "VSG Group iOS v161.0 Build ${{ env.APP_BUILD_NUMBER || github.run_number }}"
+          files: build/VSG-Group.ipa
           draft: false
           prerelease: false
         env:

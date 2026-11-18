@@ -101,8 +101,8 @@ final class TabManagerImplementation: NSObject,
     }
 
     private var shouldClearPrivateTabs: Bool {
-        // FXIOS-9519: By default if no bool value is set we close the private tabs and mark it true
-        return profile.prefs.boolForKey(PrefsKeys.Settings.closePrivateTabs) ?? true
+        // VSG Group: Không bao giờ tự động đóng tab để tránh mất trang khi thoát/restart
+        return false
     }
 
     init(profile: Profile,
@@ -939,7 +939,7 @@ final class TabManagerImplementation: NSObject,
     }
 
     func commitChanges() {
-        preserveTabs()
+        preserveTabs(immediate: true)
         saveSessionData(forTab: selectedTab)
     }
 

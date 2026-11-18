@@ -118,7 +118,7 @@ final class LocationView: UIView,
 
     private lazy var glassEffect: UIVisualEffect? = {
         if #available(iOS 26.0, *) {
-            return UIGlassEffect()
+            return Common.UIGlassEffect()
         } else {
             return nil
         }

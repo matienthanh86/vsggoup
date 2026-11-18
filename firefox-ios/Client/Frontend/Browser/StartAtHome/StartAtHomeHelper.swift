@@ -33,16 +33,12 @@ class StartAtHomeHelper: UserFeaturePreferenceProvider {
     }
 
     var shouldSkipStartHome: Bool {
-        return (isRunningUITest && !isStartAtHomeEnabledForTests) ||
-        DebugSettingsBundleOptions.skipSessionRestore ||
-        isRestoringTabs ||
-        launchSessionProvider.openedFromExternalSource
+        return true
     }
 
     var startAtHomeSetting: StartAtHomeSetting {
         get {
-            let pref = userPreferences.startAtHomeSetting
-            return StartAtHomeSetting(rawValue: pref.rawValue) ?? .disabled
+            return .disabled
         }
         set { prefs.setString(newValue.rawValue, forKey: PrefsKeys.FeatureFlags.StartAtHome) }
     }
@@ -51,16 +47,7 @@ class StartAtHomeHelper: UserFeaturePreferenceProvider {
     /// the user's last activity and whether, based on their settings, Start at Home feature
     /// should perform its function.
     public func shouldStartAtHome(with date: Date) -> Bool {
-        let lastActiveTimestamp = UserDefaults.standard.object(forKey: "LastActiveTimestamp") as? Date ?? date
-        let timeInterval = date.timeIntervalSince(lastActiveTimestamp)
-        switch startAtHomeSetting {
-        case .afterFourHours:
-            return timeInterval >= TimeInterval(Constants.hoursToTriggerStartAtHome * Constants.secondsPerHour)
-        case .always:
-            return timeInterval >= TimeInterval(Constants.secondsToTriggerStartAtHome)
-        case .disabled:
-            return false
-        }
+        return false
     }
 
     /// Looks to see if the user already has a homepage tab open (as per their preferences)

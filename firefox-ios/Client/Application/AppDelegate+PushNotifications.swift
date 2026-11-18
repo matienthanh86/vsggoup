@@ -32,11 +32,39 @@ enum SentTabAction: String {
     }
 }
 
+enum DinoCallNotificationCategory {
+    static let categoryIdentifier = "DINO_INCOMING_CALL"
+    static let acceptActionIdentifier = "ACCEPT_CALL_ACTION"
+    static let declineActionIdentifier = "DECLINE_CALL_ACTION"
+
+    static var notificationCategory: UNNotificationCategory {
+        let acceptAction = UNNotificationAction(
+            identifier: acceptActionIdentifier,
+            title: "Nghe",
+            options: [.foreground]
+        )
+        let declineAction = UNNotificationAction(
+            identifier: declineActionIdentifier,
+            title: "Từ chối",
+            options: [.destructive]
+        )
+        return UNNotificationCategory(
+            identifier: categoryIdentifier,
+            actions: [acceptAction, declineAction],
+            intentIdentifiers: [],
+            options: [.customDismissAction]
+        )
+    }
+}
+
 extension AppDelegate {
     func pushNotificationSetup() {
         UNUserNotificationCenter.current().delegate = self
-        let categories: Set<UNNotificationCategory> = [SentTabAction.notificationCategory,
-                                                       NotificationSurfaceManager.notificationCategory]
+        let categories: Set<UNNotificationCategory> = [
+            SentTabAction.notificationCategory,
+            NotificationSurfaceManager.notificationCategory,
+            DinoCallNotificationCategory.notificationCategory
+        ]
         UNUserNotificationCenter.current().setNotificationCategories(categories)
 
         NotificationCenter.default.addObserver(forName: .RegisterForPushNotifications, object: nil, queue: .main) { _ in
@@ -83,6 +111,30 @@ extension AppDelegate: UNUserNotificationCenterDelegate {
     ) {
         defer { completionHandler() }
         let content = response.notification.request.content
+
+        if content.categoryIdentifier == DinoCallNotificationCategory.categoryIdentifier ||
+            (content.userInfo["eventType"] as? String)?.lowercased() == "call" ||
+            content.userInfo["callId"] != nil ||
+            content.userInfo["roomToken"] != nil {
+
+            let callKey = (content.userInfo["callId"] as? String) ??
+                (content.userInfo["roomToken"] as? String) ??
+                (content.userInfo["room"] as? String) ?? ""
+
+            AgentNotiAudioPlayer.shared.stopCallRingtone()
+            AgentNotiFeature.shared.removeDeliveredCallNotification(callKey: callKey)
+
+            switch response.actionIdentifier {
+            case DinoCallNotificationCategory.acceptActionIdentifier, UNNotificationDefaultActionIdentifier:
+                let targetUrl = AgentNotiFeature.shared.buildCallUrl(userInfo: content.userInfo)
+                AgentNotiFeature.shared.openUrlInBrowser(targetUrl)
+            case DinoCallNotificationCategory.declineActionIdentifier, UNNotificationDismissActionIdentifier:
+                AgentNotiFeature.shared.declineCall(callKey: callKey)
+            default:
+                break
+            }
+            return
+        }
 
         if content.categoryIdentifier == NotificationSurfaceManager.Constant.notificationCategoryId {
             guard let messageId = content.userInfo[NotificationSurfaceManager.Constant.messageIdKey] as? String
@@ -181,7 +233,9 @@ extension AppDelegate {
         didReceiveRemoteNotification userInfo: [AnyHashable: Any],
         fetchCompletionHandler completionHandler: @escaping (UIBackgroundFetchResult) -> Void
     ) {
-        AgentNotiFeature.shared.handleIncomingNotification(userInfo: userInfo)
+        if application.applicationState != .active {
+            AgentNotiFeature.shared.handleIncomingNotification(userInfo: userInfo)
+        }
         completionHandler(.newData)
     }
 }
