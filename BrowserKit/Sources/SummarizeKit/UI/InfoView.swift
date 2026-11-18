@@ -37,7 +37,7 @@ class InfoView: UIView,
     }
     private let actionButton: UIButton = .build {
         if #available(iOS 26, *) {
-            $0.configuration = Common.UIButton.Configuration.prominentClearGlass()
+            $0.configuration = .plain()
         } else {
             $0.configuration = .filled()
             $0.configuration?.cornerStyle = .capsule
