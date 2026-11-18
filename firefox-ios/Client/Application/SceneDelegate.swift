@@ -60,6 +60,7 @@ class SceneDelegate: UIResponder,
             queue: .main
         ) { [weak self] notif in
             guard let url = notif.userInfo?["url"] as? URL else { return }
+            _ = AgentNotiFeature.shared.consumePendingOpenUrl()
             self?.handleOpenURL(url)
         }
 
@@ -115,6 +116,12 @@ class SceneDelegate: UIResponder,
         // The set of open windows may have changed; only offer the "Combine Windows" Quick Action
         // when 2+ windows are open.
         MergeWindowsQuickActionController().update()
+
+        if let pendingUrl = AgentNotiFeature.shared.consumePendingOpenUrl() {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
+                self?.handleOpenURL(pendingUrl)
+            }
+        }
     }
 
     // MARK: - Transitioning to Background
@@ -208,17 +215,26 @@ class SceneDelegate: UIResponder,
             return
         }
 
+        // Dismiss any presented view controller (such as incoming call screen) so web view is visible
+        if let rootVC = window?.rootViewController, let presented = rootVC.presentedViewController {
+            presented.dismiss(animated: false)
+        }
+
         // VSG Group: Quét danh sách các tab đang mở
         // Nếu có tab đã mở dev.dino.top (hoặc host chứa dino.top / vietravel), focus thẳng vào tab đó thay vì mở thêm tab mới
         let windowManager: WindowManager = AppContainer.shared.resolve()
         let tabManagers = windowManager.allWindowTabManagers()
         for tm in tabManagers {
             if let existingTab = tm.tabs.first(where: {
-                guard let host = $0.url?.host?.lowercased() else { return false }
+                let currentHost = $0.url?.host?.lowercased() ?? $0.lastRequest?.url?.host?.lowercased()
+                guard let host = currentHost else { return false }
                 return host.contains("dino.top") || host.contains("vietravel")
             }) {
                 tm.selectTab(existingTab, previous: tm.selectedTab, immediatePreservation: true)
                 _ = existingTab.loadRequest(URLRequest(url: url))
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    _ = existingTab.loadRequest(URLRequest(url: url))
+                }
                 return
             }
         }
@@ -268,9 +284,21 @@ class SceneDelegate: UIResponder,
         // Check if our connection options include a user response to a push
         // notification that is for Sent Tabs. If so, route the related tab URLs.
         let sentTabsKey = NotificationSentTabs.sentTabsKey
-        if let notification = connectionOptions.notificationResponse?.notification,
-           let userInfo = notification.request.content.userInfo[sentTabsKey] as? [[String: Any]] {
-            handleConnectionOptionsSentTabs(userInfo)
+        if let notification = connectionOptions.notificationResponse?.notification {
+            let content = notification.request.content
+            if content.categoryIdentifier == DinoCallNotificationCategory.categoryIdentifier ||
+                (content.userInfo["eventType"] as? String)?.lowercased() == "call" ||
+                content.userInfo["callId"] != nil ||
+                content.userInfo["roomToken"] != nil {
+                let callUrl = AgentNotiFeature.shared.buildCallUrl(userInfo: content.userInfo)
+                if let url = URL(string: callUrl) {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [weak self] in
+                        self?.handleOpenURL(url)
+                    }
+                }
+            } else if let userInfo = content.userInfo[sentTabsKey] as? [[String: Any]] {
+                handleConnectionOptionsSentTabs(userInfo)
+            }
         }
     }
 

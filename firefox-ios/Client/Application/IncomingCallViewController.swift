@@ -12,6 +12,8 @@ public final class IncomingCallViewController: UIViewController {
     public var callStatusText: String = "Đang đổ chuông..."
     public var callUrl: String = ""
     public var callKey: String = ""
+    public var avatarUrl: String?
+    public var timeoutInterval: TimeInterval = 45.0
     public var onCallAccepted: ((String) -> Void)?
     public var onCallDeclined: ((String) -> Void)?
     private var callTimeoutTimer: Timer?
@@ -86,6 +88,16 @@ public final class IncomingCallViewController: UIViewController {
         callerLabel.text = callerName
         statusLabel.text = callStatusText
 
+        if let avatarStr = avatarUrl, let url = URL(string: avatarStr) {
+            URLSession.shared.dataTask(with: url) { [weak self] data, _, _ in
+                if let data = data, let img = UIImage(data: data) {
+                    DispatchQueue.main.async {
+                        self?.avatarImageView.image = img
+                    }
+                }
+            }.resume()
+        }
+
         declineButton.addTarget(self, action: #selector(handleDecline), for: .touchUpInside)
         acceptButton.addTarget(self, action: #selector(handleAccept), for: .touchUpInside)
 
@@ -96,8 +108,8 @@ public final class IncomingCallViewController: UIViewController {
             object: nil
         )
 
-        // Hẹn giờ 45s tự ngắt nếu không thao tác
-        callTimeoutTimer = Timer.scheduledTimer(withTimeInterval: 45.0, repeats: false) { [weak self] _ in
+        // Hẹn giờ tự ngắt nếu không thao tác
+        callTimeoutTimer = Timer.scheduledTimer(withTimeInterval: timeoutInterval, repeats: false) { [weak self] _ in
             self?.handleTimeout()
         }
     }
