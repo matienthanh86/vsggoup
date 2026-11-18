@@ -47,7 +47,7 @@ class SwipeUpTabWebViewPreview: UIView, ThemeApplicable {
     }
     private let closeButton: UIButton = .build {
         if #available(iOS 26, *) {
-            $0.configuration = .prominentClearGlass()
+            $0.configuration = Common.UIButton.Configuration.prominentClearGlass()
         } else {
             $0.configuration = .filled()
             $0.configuration?.cornerStyle = .capsule

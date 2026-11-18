@@ -34,7 +34,7 @@ public class CloseButton: UIButton,
         setupConstraints()
 
         if #available(iOS 26.0, *) {
-            configuration = .glass()
+            configuration = Common.UIButton.Configuration.glass()
         }
     }
 
@@ -72,7 +72,7 @@ public class CloseButton: UIButton,
 
     @available(iOS 26.0, *)
     public func applyProminentClearGlassConfiguration(backgroundColor: UIColor, foregroundColor: UIColor) {
-        var config = UIButton.Configuration.prominentClearGlass()
+        var config = Common.UIButton.Configuration.prominentClearGlass()
         config.image = configuration?.image ?? image(for: .normal)
         config.baseBackgroundColor = backgroundColor
         config.baseForegroundColor = foregroundColor

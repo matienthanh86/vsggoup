@@ -36,7 +36,7 @@ final class OptInView: UIView, UITextViewDelegate, ThemeApplicable {
     }
     private lazy var continueButton: UIButton = .build { [weak self] in
         if #available(iOS 26, *) {
-            $0.configuration = .prominentClearGlass()
+            $0.configuration = Common.UIButton.Configuration.prominentClearGlass()
         } else {
             $0.configuration = .filled()
         }

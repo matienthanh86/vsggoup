@@ -69,7 +69,7 @@ public final class QuickAnswersEntryPointButton: UIButton {
 
     private func setupButton() {
         if #available(iOS 26, *) {
-            configuration = .glass()
+            configuration = Common.UIButton.Configuration.glass()
         } else {
             configuration = .filled()
         }

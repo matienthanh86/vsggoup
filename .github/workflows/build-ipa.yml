@@ -15,7 +15,7 @@ env:
 jobs:
   build-ipa:
     name: Build IPA
-    runs-on: macos-15-intel
+    runs-on: macos-15
     permissions:
       contents: write
     steps:
@@ -32,10 +32,7 @@ jobs:
         run: |
           echo "Available Xcode versions:"
           ls -d /Applications/Xcode* || true
-          TARGET_XCODE=$(ls -d /Applications/Xcode_2*.app 2>/dev/null | sort -V | tail -n 1)
-          if [ -z "$TARGET_XCODE" ]; then
-            TARGET_XCODE=$(ls -d /Applications/Xcode_16*.app 2>/dev/null | sort -V | tail -n 1)
-          fi
+          TARGET_XCODE=$(ls -d /Applications/Xcode_16*.app 2>/dev/null | sort -V | tail -n 1)
           if [ -z "$TARGET_XCODE" ]; then
             TARGET_XCODE=$(ls -d /Applications/Xcode*.app 2>/dev/null | sort -V | tail -n 1)
           fi

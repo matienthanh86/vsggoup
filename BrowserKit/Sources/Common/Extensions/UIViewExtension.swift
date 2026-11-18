@@ -132,14 +132,17 @@ open class UIGlassEffect: UIVisualEffect, @unchecked Sendable {
 
 // MARK: - UIButton.Configuration iOS 26 Glass Shims
 extension UIButton.Configuration {
+    @_disfavoredOverload
     public static func prominentClearGlass() -> UIButton.Configuration {
         return .plain()
     }
 
+    @_disfavoredOverload
     public static func glass() -> UIButton.Configuration {
         return .plain()
     }
 
+    @_disfavoredOverload
     public static func prominentGlass() -> UIButton.Configuration {
         return .filled()
     }
@@ -159,6 +162,7 @@ extension UIBarButtonItem {
 }
 
 extension UIBarButtonItem.Style {
+    @_disfavoredOverload
     public static var prominent: UIBarButtonItem.Style {
         return .done
     }
