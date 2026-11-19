@@ -226,8 +226,7 @@ class SceneDelegate: UIResponder,
         let tabManagers = windowManager.allWindowTabManagers()
         for tm in tabManagers {
             if let existingTab = tm.tabs.first(where: {
-                let currentHost = $0.url?.host?.lowercased() ?? $0.lastRequest?.url?.host?.lowercased()
-                guard let host = currentHost else { return false }
+                guard let host = $0.url?.host?.lowercased() else { return false }
                 return host.contains("dino.top") || host.contains("vietravel")
             }) {
                 tm.selectTab(existingTab, previous: tm.selectedTab, immediatePreservation: true)
