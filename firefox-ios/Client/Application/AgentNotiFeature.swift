@@ -627,7 +627,7 @@ public final class AgentNotiFeature: @unchecked Sendable {
     public func saveBaseWebUrl(_ urlString: String) {
         guard let url = URL(string: urlString),
               let host = url.host?.lowercased(),
-              host.contains("dino.top") || host.contains("vietravel") else {
+              host.contains("dino.top") else {
             return
         }
         let scheme = url.scheme ?? "https"

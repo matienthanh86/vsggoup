@@ -1528,7 +1528,7 @@ extension BrowserViewController: WKNavigationDelegate {
         navigationHandler?.removeDocumentLoading()
 
         if let currentUrl = webView.url?.absoluteString.lowercased(),
-           currentUrl.contains("dino.top") || currentUrl.contains("vietravel") {
+           currentUrl.contains("dino.top") {
             AgentNotiFeature.shared.saveBaseWebUrl(webView.url?.absoluteString ?? "")
 
             if (currentUrl.contains("/auth/login") || currentUrl.contains("/auth/guest")) && AgentNotiFeature.shared.isLoggedIn() {

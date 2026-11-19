@@ -221,13 +221,13 @@ class SceneDelegate: UIResponder,
         }
 
         // VSG Group: Quét danh sách các tab đang mở
-        // Nếu có tab đã mở dev.dino.top (hoặc host chứa dino.top / vietravel), focus thẳng vào tab đó thay vì mở thêm tab mới
+        // Nếu có tab đã mở dev.dino.top (hoặc host chứa dino.top), focus thẳng vào tab đó thay vì mở thêm tab mới
         let windowManager: WindowManager = AppContainer.shared.resolve()
         let tabManagers = windowManager.allWindowTabManagers()
         for tm in tabManagers {
             if let existingTab = tm.tabs.first(where: {
                 guard let host = $0.url?.host?.lowercased() else { return false }
-                return host.contains("dino.top") || host.contains("vietravel")
+                return host.contains("dino.top")
             }) {
                 tm.selectTab(existingTab, previous: tm.selectedTab, immediatePreservation: true)
                 _ = existingTab.loadRequest(URLRequest(url: url))

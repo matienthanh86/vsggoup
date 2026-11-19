@@ -1,6 +1,7 @@
 # VSG AgentNoti Development Rules
 
 - Backend API: Only use `https://agent-dev-api.dino.top` as the backend endpoint. Never use ngrok, emulator fallbacks (10.0.2.2), or local endpoints.
+- Domain Restriction: Chỉ nhận diện và sử dụng duy nhất tên miền có chứa `dino.top` (mặc định `https://dev.dino.top`). Loại bỏ hoàn toàn `vietravel` và các tên miền khác khỏi logic nhận diện tab, lưu base URL và redirect cuộc gọi.
 - Build & Packaging Automation: NEVER execute build, packaging, or installation commands (`xcodebuild`, `./patch_existing_ipa.sh`, `python3 fix_and_pack_test_ipa.py`, `./mach gradle :fenix:assembleDebug`, `adb install`, v.v.) automatically. Always provide the exact command line for the user to execute themselves.
 - Git Push & Remote Operations: NEVER run `git push`, `git push origin`, or any remote git write operations automatically. Under no circumstances should the agent push code to GitHub or any remote repository. Always provide the exact command line for the user to review and push code themselves. The project Git repository is `https://git.vsg.top/thanhmt/vsggroup.git` (remote `vsg` or `origin`). Never push or instruct to push to upstream `mozilla-firefox/firefox.git`.
 - Target Environment: Exclusively target standard Android SDK Emulators (AVD, e.g. `emulator-5554` with `sdk_gphone64_*`). Completely exclude LDPlayer from all testing, installation commands, device targeting, and documentation workflows. Disable ADB debugging in LDPlayer settings or close LDPlayer to prevent port 5555 collision.
