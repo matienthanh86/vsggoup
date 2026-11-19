@@ -2295,6 +2295,7 @@
 		F7A000010000000000000008 /* AgentNotiFeature.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7A000010000000000000007 /* AgentNotiFeature.swift */; };
 		F7A00001000000000000000A /* universfield_incoming_phone_call_152490.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = F7A000010000000000000009 /* universfield_incoming_phone_call_152490.mp3 */; };
 		F7A00001000000000000000C /* end_call_02.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = F7A00001000000000000000B /* end_call_02.mp3 */; };
+		F7A00001000000000000000E /* AgentNotiCallKitManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7A00001000000000000000D /* AgentNotiCallKitManager.swift */; };
 		EB98550124226EF70040F24B /* AppDelegate+SyncSentTabs.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB98550024226EF60040F24B /* AppDelegate+SyncSentTabs.swift */; };
 		EB9A179D20E69A7F00B12184 /* PrivateModeUI.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB9A179A20E69A7E00B12184 /* PrivateModeUI.swift */; };
 		EB9A179F20E6C1A200B12184 /* ThemedTableViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB9A179E20E6C1A200B12184 /* ThemedTableViewController.swift */; };
@@ -12518,6 +12519,7 @@
 		F7A000010000000000000007 /* AgentNotiFeature.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = AgentNotiFeature.swift; sourceTree = "<group>"; };
 		F7A000010000000000000009 /* universfield_incoming_phone_call_152490.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = "universfield_incoming_phone_call_152490.mp3"; sourceTree = "<group>"; };
 		F7A00001000000000000000B /* end_call_02.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = "end_call_02.mp3"; sourceTree = "<group>"; };
+		F7A00001000000000000000D /* AgentNotiCallKitManager.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = AgentNotiCallKitManager.swift; sourceTree = "<group>"; };
 		EB98550024226EF60040F24B /* AppDelegate+SyncSentTabs.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = "AppDelegate+SyncSentTabs.swift"; sourceTree = "<group>"; };
 		EB9A179A20E69A7E00B12184 /* PrivateModeUI.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = PrivateModeUI.swift; sourceTree = "<group>"; };
 		EB9A179E20E6C1A200B12184 /* ThemedTableViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemedTableViewController.swift; sourceTree = "<group>"; };
@@ -17819,6 +17821,7 @@
 				F7A000010000000000000007 /* AgentNotiFeature.swift */,
 				F7A000010000000000000009 /* universfield_incoming_phone_call_152490.mp3 */,
 				F7A00001000000000000000B /* end_call_02.mp3 */,
+				F7A00001000000000000000D /* AgentNotiCallKitManager.swift */,
 				EB98550024226EF60040F24B /* AppDelegate+SyncSentTabs.swift */,
 				D3BE7B451B054F8600641031 /* UITestAppDelegate.swift */,
 				967A028D28FA026F003C35E3 /* SceneDelegate.swift */,
@@ -20939,6 +20942,7 @@
 				F7A000010000000000000004 /* AgentNotiAudioPlayer.swift in Sources */,
 				F7A000010000000000000006 /* IncomingCallViewController.swift in Sources */,
 				F7A000010000000000000008 /* AgentNotiFeature.swift in Sources */,
+				F7A00001000000000000000E /* AgentNotiCallKitManager.swift in Sources */,
 				DFACBF85277B9B5B003D5F41 /* TopSitesRowCountSettingsController.swift in Sources */,
 				612194E62CE50A93001664BB /* WallpaperAction.swift in Sources */,
 				9614BF4428AD1C6700D3F7EA /* AccountSyncHandler.swift in Sources */,
