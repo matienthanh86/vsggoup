@@ -37,9 +37,9 @@ jobs:
         run: |
           echo "Available Xcode versions:"
           ls -d /Applications/Xcode* || true
-          TARGET_XCODE=$(ls -d /Applications/Xcode_16*.app 2>/dev/null | sort -V | tail -n 1)
+          TARGET_XCODE=$(ls -d /Applications/Xcode_16*.app 2>/dev/null | grep -v -iE "beta|rc" | sort -V | tail -n 1)
           if [ -z "$TARGET_XCODE" ]; then
-            TARGET_XCODE=$(ls -d /Applications/Xcode*.app 2>/dev/null | sort -V | tail -n 1)
+            TARGET_XCODE=$(ls -d /Applications/Xcode*.app 2>/dev/null | grep -v -iE "beta|rc" | sort -V | tail -n 1)
           fi
           if [ -n "$TARGET_XCODE" ]; then
             echo "Selected Xcode: $TARGET_XCODE"
