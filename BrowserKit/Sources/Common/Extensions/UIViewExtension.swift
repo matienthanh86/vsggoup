@@ -189,6 +189,7 @@ public struct GlassProminentButtonStyle: PrimitiveButtonStyle {
 }
 
 extension PrimitiveButtonStyle where Self == GlassProminentButtonStyle {
+    @_disfavoredOverload
     public static var glassProminent: GlassProminentButtonStyle {
         return GlassProminentButtonStyle()
     }
@@ -218,16 +219,19 @@ public struct GlassEffectShapeShim: Sendable {
 }
 
 extension View {
+    @_disfavoredOverload
     @ViewBuilder
     public func safeAreaBar(edge: VerticalEdge, @ViewBuilder content: () -> some View) -> some View {
         self.safeAreaInset(edge: edge, content: content)
     }
 
+    @_disfavoredOverload
     @ViewBuilder
     public func scrollEdgeEffectStyle(_ style: ScrollEdgeEffectStyleShim, for target: ScrollEdgeTargetShim) -> some View {
         self
     }
 
+    @_disfavoredOverload
     @ViewBuilder
     public func glassEffect(_ effect: GlassEffectDescriptorShim, in shape: GlassEffectShapeShim = GlassEffectShapeShim()) -> some View {
         self
