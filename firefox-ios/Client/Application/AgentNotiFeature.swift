@@ -233,7 +233,7 @@ public final class AgentNotiFeature: @unchecked Sendable {
     public func declineCall(callKey: String?) {
         AgentNotiCallKitManager.shared.reportCallEnded(callKey: callKey, reason: .declinedElsewhere)
         guard let callKey = callKey, !callKey.isEmpty else { return }
-        guard let agentId = getSavedAgentId(), let uid = getSavedUserId() else { return }
+        guard let agentId = getSavedAgentId(), let uid = (getSavedUserId() ?? getSavedUsername()) else { return }
         Task {
             _ = try? await apiClient.declineCall(agentId: agentId, uid: uid, callId: callKey, roomToken: callKey)
         }

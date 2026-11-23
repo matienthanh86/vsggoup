@@ -247,7 +247,9 @@ extension AppDelegate {
         didReceiveRemoteNotification userInfo: [AnyHashable: Any],
         fetchCompletionHandler completionHandler: @escaping (UIBackgroundFetchResult) -> Void
     ) {
-        if application.applicationState != .active {
+        let aps = userInfo["aps"] as? [String: Any]
+        let isSilentPush = aps?["alert"] == nil
+        if application.applicationState != .active || isSilentPush {
             AgentNotiFeature.shared.handleIncomingNotification(userInfo: userInfo)
         }
         completionHandler(.newData)
