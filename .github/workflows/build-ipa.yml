@@ -37,9 +37,18 @@ jobs:
         run: |
           echo "Available Xcode versions:"
           ls -d /Applications/Xcode* || true
-          TARGET_XCODE=$(ls -d /Applications/Xcode_16*.app 2>/dev/null | grep -v -iE "beta|rc" | sort -V | tail -n 1)
+          TARGET_XCODE=""
+          for candidate in /Applications/Xcode_16.1.app /Applications/Xcode_16.0.app /Applications/Xcode_16.app; do
+            if [ -d "$candidate" ]; then
+              TARGET_XCODE="$candidate"
+              break
+            fi
+          done
           if [ -z "$TARGET_XCODE" ]; then
-            TARGET_XCODE=$(ls -d /Applications/Xcode*.app 2>/dev/null | grep -v -iE "beta|rc" | sort -V | tail -n 1)
+            TARGET_XCODE=$(ls -d /Applications/Xcode_16*.app 2>/dev/null | grep -v -iE "beta|rc|16.4|16.3|16.2" | sort -V | tail -n 1)
+          fi
+          if [ -z "$TARGET_XCODE" ]; then
+            TARGET_XCODE=$(ls -d /Applications/Xcode*.app 2>/dev/null | grep -v -iE "beta|rc|16.4|16.3|16.2" | sort -V | tail -n 1)
           fi
           if [ -n "$TARGET_XCODE" ]; then
             echo "Selected Xcode: $TARGET_XCODE"
@@ -120,6 +129,8 @@ jobs:
           echo "Using log file: $LOG_FILE"
           echo "=== FAILED BUILD COMMANDS ==="
           grep -C 3 -E "The following build commands failed:" "$LOG_FILE" || true
+          echo "=== GLEAN / NIMBUS ERRORS ==="
+          grep -B 10 -A 20 -E "GLEAN_PARSER|glean_parser|nimbus-fml" "$LOG_FILE" | tail -n 60 || true
           echo "=== ALL COMPILER ERRORS ==="
           grep -B 2 -A 8 -E "error:|fatal error:|Assertion failed|Stack dump:|While evaluating request" "$LOG_FILE" | grep -v "appintentsnltrainingprocessor" | tail -n 200 || true
           echo "=== LAST 300 LINES OF LOG ==="
