@@ -324,19 +324,19 @@ print(f"  -> Đã nhúng 100% icon VSG Group vào {total_patched} vị trí (Lig
 PYEOF
 fi
 
-# 5. Cập nhật SDK lên iOS 26 trong toàn bộ Info.plist (ITMS-90725 & ITMS-90208)
-echo "==> 4. Cập nhật SDK lên iOS 26 trong Info.plist (ITMS-90725, ITMS-90208)..."
+# 5. Cập nhật SDK lên iOS 27 trong toàn bộ Info.plist (ITMS-90725 & ITMS-90208)
+echo "==> 4. Cập nhật SDK lên iOS 27 trong Info.plist (ITMS-90725, ITMS-90208)..."
 find "$APP_PATH" -name "Info.plist" | while read -r plist; do
   /usr/libexec/PlistBuddy -c "Set :MinimumOSVersion 15.0" "$plist" 2>/dev/null || /usr/libexec/PlistBuddy -c "Add :MinimumOSVersion string 15.0" "$plist" 2>/dev/null || true
-  /usr/libexec/PlistBuddy -c "Set :DTPlatformVersion 26.0" "$plist" 2>/dev/null || /usr/libexec/PlistBuddy -c "Add :DTPlatformVersion string 26.0" "$plist" 2>/dev/null || true
-  /usr/libexec/PlistBuddy -c "Set :DTSDKName iphoneos26.0" "$plist" 2>/dev/null || /usr/libexec/PlistBuddy -c "Add :DTSDKName string iphoneos26.0" "$plist" 2>/dev/null || true
-  /usr/libexec/PlistBuddy -c "Set :DTSDKBuild 26A528" "$plist" 2>/dev/null || /usr/libexec/PlistBuddy -c "Add :DTSDKBuild string 26A528" "$plist" 2>/dev/null || true
-  /usr/libexec/PlistBuddy -c "Set :DTXcode 2600" "$plist" 2>/dev/null || /usr/libexec/PlistBuddy -c "Add :DTXcode string 2600" "$plist" 2>/dev/null || true
-  /usr/libexec/PlistBuddy -c "Set :DTXcodeBuild 26A528" "$plist" 2>/dev/null || /usr/libexec/PlistBuddy -c "Add :DTXcodeBuild string 26A528" "$plist" 2>/dev/null || true
+  /usr/libexec/PlistBuddy -c "Set :DTPlatformVersion 27.0" "$plist" 2>/dev/null || /usr/libexec/PlistBuddy -c "Add :DTPlatformVersion string 27.0" "$plist" 2>/dev/null || true
+  /usr/libexec/PlistBuddy -c "Set :DTSDKName iphoneos27.0" "$plist" 2>/dev/null || /usr/libexec/PlistBuddy -c "Add :DTSDKName string iphoneos27.0" "$plist" 2>/dev/null || true
+  /usr/libexec/PlistBuddy -c "Set :DTSDKBuild 27A528" "$plist" 2>/dev/null || /usr/libexec/PlistBuddy -c "Add :DTSDKBuild string 27A528" "$plist" 2>/dev/null || true
+  /usr/libexec/PlistBuddy -c "Set :DTXcode 2700" "$plist" 2>/dev/null || /usr/libexec/PlistBuddy -c "Add :DTXcode string 2700" "$plist" 2>/dev/null || true
+  /usr/libexec/PlistBuddy -c "Set :DTXcodeBuild 27A528" "$plist" 2>/dev/null || /usr/libexec/PlistBuddy -c "Add :DTXcodeBuild string 27A528" "$plist" 2>/dev/null || true
 done
 
 # 6. Cập nhật Mach-O binary bằng vtool (ITMS-90725 & ITMS-90208)
-echo "==> 5. Cập nhật Mach-O LC_BUILD_VERSION sang iOS 15.0 minos / 26.0 SDK bằng vtool..."
+echo "==> 5. Cập nhật Mach-O LC_BUILD_VERSION sang iOS 15.0 minos / 27.0 SDK bằng vtool..."
 APP_PATH="$APP_PATH" python3 - << 'PYEOF'
 import os, subprocess, re
 
@@ -356,14 +356,14 @@ for root, dirs, files in os.walk(app_path):
                     # Đặt minos 15.0 để khớp chính xác với MinimumOSVersion 15.0 trong Info.plist (tránh lỗi 90208)
                     minos = "15.0"
                     temp_out = p + ".vtool"
-                    res = subprocess.run(["vtool", "-set-build-version", "ios", minos, "26.0", "-replace", "-output", temp_out, p], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                    res = subprocess.run(["vtool", "-set-build-version", "ios", minos, "27.0", "-replace", "-output", temp_out, p], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
                     if res.returncode == 0 and os.path.exists(temp_out):
                         os.replace(temp_out, p)
                         os.chmod(p, 0o755)
                         count += 1
         except Exception:
             pass
-print(f"  -> Đã vá {count} binary sang minos 15.0 / SDK 26.0")
+print(f"  -> Đã vá {count} binary sang minos 15.0 / SDK 27.0")
 PYEOF
 
 # 7. Xóa các thuộc tính mở rộng và tệp rác macOS
