@@ -179,6 +179,7 @@ extension UIBarButtonItem.Style {
 // MARK: - SwiftUI iOS 26 Glass Button Style & View Modifiers Shims
 import SwiftUI
 
+#if LEGACY_XCODE_SHIMS
 public struct GlassProminentButtonStyle: PrimitiveButtonStyle {
     public init() {}
     public func makeBody(configuration: Configuration) -> some View {
@@ -189,11 +190,11 @@ public struct GlassProminentButtonStyle: PrimitiveButtonStyle {
 }
 
 extension PrimitiveButtonStyle where Self == GlassProminentButtonStyle {
-    @_disfavoredOverload
     public static var glassProminent: GlassProminentButtonStyle {
         return GlassProminentButtonStyle()
     }
 }
+#endif
 
 public struct ScrollEdgeEffectStyleShim: Sendable {
     public static let soft = ScrollEdgeEffectStyleShim()

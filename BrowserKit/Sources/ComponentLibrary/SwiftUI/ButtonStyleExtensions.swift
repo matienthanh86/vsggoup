@@ -34,7 +34,7 @@ private struct GlassPrimaryButtonStyle: PrimitiveButtonStyle {
                 .padding(.vertical, UX.verticalPadding)
                 .padding(.horizontal, UX.horizontalPadding)
         }
-        .buttonStyle(SwiftUI.PrimitiveButtonStyle.glassProminent)
+        .buttonStyle(.glassProminent)
         .tint(theme.colors.actionPrimary.color)
         .font(FXFontStyles.Bold.headline.scaledSwiftUIFont())
         .foregroundStyle(theme.colors.textInverted.color)
