@@ -91,7 +91,7 @@ extension UIView {
 }
 
 // MARK: - iOS 26+ Compatibility Shims for Compiling on Xcode <= 16 / iOS <= 18 SDKs
-#if compiler(<6.4)
+#if LEGACY_XCODE_SHIMS
 public struct UILayoutGuideRegion: Sendable {
     public enum CornerAdaptation: Sendable {
         case horizontal
@@ -110,10 +110,6 @@ extension UIView {
     }
 }
 
-// UIGlassEffect is natively provided by UIKit in iOS 26+ SDK (Xcode 26+).
-// To avoid ambiguous type collision between Common.UIGlassEffect and UIKit.UIGlassEffect
-// on Xcode 26+, this compatibility shim is only compiled when LEGACY_XCODE_SHIMS is defined.
-#if LEGACY_XCODE_SHIMS
 open class UIGlassEffect: UIVisualEffect, @unchecked Sendable {
     public enum Style: Sendable {
         case regular
@@ -133,10 +129,6 @@ open class UIGlassEffect: UIVisualEffect, @unchecked Sendable {
         self.init()
     }
 }
-#else
-@available(iOS 26.0, *)
-public typealias UIGlassEffect = UIKit.UIGlassEffect
-#endif
 
 // MARK: - UIButton.Configuration iOS 26 Glass Shims
 extension UIButton.Configuration {
@@ -179,7 +171,6 @@ extension UIBarButtonItem.Style {
 // MARK: - SwiftUI iOS 26 Glass Button Style & View Modifiers Shims
 import SwiftUI
 
-#if LEGACY_XCODE_SHIMS
 public struct GlassProminentButtonStyle: PrimitiveButtonStyle {
     public init() {}
     public func makeBody(configuration: Configuration) -> some View {
@@ -194,7 +185,6 @@ extension PrimitiveButtonStyle where Self == GlassProminentButtonStyle {
         return GlassProminentButtonStyle()
     }
 }
-#endif
 
 public struct ScrollEdgeEffectStyleShim: Sendable {
     public static let soft = ScrollEdgeEffectStyleShim()
@@ -238,4 +228,7 @@ extension View {
         self
     }
 }
+#else
+@available(iOS 26.0, *)
+public typealias UIGlassEffect = UIKit.UIGlassEffect
 #endif
