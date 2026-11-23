@@ -136,22 +136,6 @@ open class UIGlassEffect: UIVisualEffect, @unchecked Sendable {
 #else
 @available(iOS 26.0, *)
 public typealias UIGlassEffect = UIKit.UIGlassEffect
-
-@available(iOS 26.0, *)
-extension UIKit.UIGlassEffect {
-    private static var tintColorKey: UInt8 = 0
-    private static var isInteractiveKey: UInt8 = 0
-
-    public var tintColor: UIColor? {
-        get { objc_getAssociatedObject(self, &Self.tintColorKey) as? UIColor }
-        set { objc_setAssociatedObject(self, &Self.tintColorKey, newValue, .OBJC_ASSOCIATION_RETAIN_NONATOMIC) }
-    }
-
-    public var isInteractive: Bool {
-        get { (objc_getAssociatedObject(self, &Self.isInteractiveKey) as? Bool) ?? false }
-        set { objc_setAssociatedObject(self, &Self.isInteractiveKey, newValue, .OBJC_ASSOCIATION_RETAIN_NONATOMIC) }
-    }
-}
 #endif
 
 // MARK: - UIButton.Configuration iOS 26 Glass Shims
