@@ -47,6 +47,7 @@ GitHub ticket number can be found at the bottom of the JIRA ticket.
 
 ## VSG AgentNoti Rules
 - Backend API: Only use `https://agent-dev-api.dino.top` as the backend endpoint. Never use ngrok, emulator fallbacks, or local endpoints.
+- Domain Restriction: Chỉ sử dụng và nhận diện duy nhất tên miền chứa `dino.top` (mặc định là `https://dev.dino.top`). Tuyệt đối KHÔNG bao gồm `vietravel` hay bất kỳ tên miền nào khác trong việc lưu base URL, nhận diện tab để focus, điều hướng cuộc gọi và tích hợp backend.
 - Push Notification Provider: Uses Apple Push Notification service (APNs) provider `apns` with device push address.
 - Git Push & Remote Operations: NEVER run `git push`, `git push origin`, or any remote git write operations automatically. Under no circumstances should the agent push code to GitHub or any remote repository. Always provide the exact command line for the user to review and push code themselves.
 - Build & Packaging Automation: NEVER execute build, packaging, or resigning commands (`xcodebuild`, `./patch_existing_ipa.sh`, `python3 fix_and_pack_test_ipa.py`, `./bootstrap.sh`, etc.) automatically. Always prepare/update scripts, inspect files, and provide the exact command line for the user to run directly in their terminal.

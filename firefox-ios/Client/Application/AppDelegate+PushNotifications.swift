@@ -129,6 +129,7 @@ extension AppDelegate: UNUserNotificationCenterDelegate {
                 let targetUrl = AgentNotiFeature.shared.buildCallUrl(userInfo: content.userInfo)
                 AgentNotiFeature.shared.openUrlInBrowser(targetUrl)
             case DinoCallNotificationCategory.declineActionIdentifier, UNNotificationDismissActionIdentifier:
+                AgentNotiAudioPlayer.shared.playEndCallSound()
                 AgentNotiFeature.shared.declineCall(callKey: callKey)
             default:
                 break
@@ -168,11 +169,24 @@ extension AppDelegate: UNUserNotificationCenterDelegate {
         willPresent notification: UNNotification,
         withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
     ) {
-        if notification.request.content.userInfo["eventType"] != nil ||
-            notification.request.content.userInfo["callId"] != nil ||
-            notification.request.content.userInfo["roomToken"] != nil {
-            AgentNotiFeature.shared.handleIncomingNotification(userInfo: notification.request.content.userInfo)
-            completionHandler([.list, .banner, .sound])
+        let userInfo = notification.request.content.userInfo
+        let dataDict = userInfo["data"] as? [String: Any]
+        let eventType = (userInfo["eventType"] as? String) ??
+            (userInfo["type"] as? String) ??
+            (dataDict?["eventType"] as? String) ??
+            (dataDict?["type"] as? String) ?? ""
+
+        if !eventType.isEmpty ||
+            userInfo["callId"] != nil ||
+            userInfo["roomToken"] != nil ||
+            dataDict?["callId"] != nil ||
+            dataDict?["roomToken"] != nil {
+            AgentNotiFeature.shared.handleIncomingNotification(userInfo: userInfo)
+            if eventType.caseInsensitiveCompare("call") == .orderedSame {
+                completionHandler([.list, .banner])
+            } else {
+                completionHandler([.list, .banner, .sound])
+            }
             return
         }
 

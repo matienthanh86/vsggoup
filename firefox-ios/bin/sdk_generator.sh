@@ -179,7 +179,7 @@ VENVDIR="${SOURCE_ROOT}/.venv"
 # We need at least pip 20.3 for Big Sur support, see https://pip.pypa.io/en/stable/news/#id48
 # Latest pip is 21.0.1
 "${VENVDIR}"/bin/pip install "pip>=20.3"
-"${VENVDIR}"/bin/pip install --upgrade "glean_parser~=$GLEAN_PARSER_VERSION"
+"${VENVDIR}"/bin/pip install "glean_parser==22.0.1" || "${VENVDIR}"/bin/pip install --upgrade "glean_parser~=$GLEAN_PARSER_VERSION"
 
 # Run the glinter
 # Turn its warnings into warnings visible in Xcode (but don't do for the success message)
@@ -200,7 +200,13 @@ PARSER_OUTPUT=$("${VENVDIR}"/bin/python -m glean_parser \
     $BUILD_DATE \
     $EXPIRE_VERSION \
     $ALLOW_RESERVED \
-    "${YAML_FILES[@]}" 2>&1) || { echo "$PARSER_OUTPUT"; echo "error: glean_parser failed. See errors above."; exit 1; }
+    "${YAML_FILES[@]}" 2>&1) || {
+        echo "=== GLEAN_PARSER FULL ERROR ==="
+        echo "$PARSER_OUTPUT"
+        echo "=== END GLEAN_PARSER FULL ERROR ==="
+        echo "error: glean_parser failed. See errors above."
+        exit 1
+    }
 
 if [ -n "$DOCS_DIRECTORY" ]; then
     "${VENVDIR}"/bin/python -m glean_parser \

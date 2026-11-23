@@ -29,6 +29,14 @@ public final class AgentNotiFeature: @unchecked Sendable {
     private var lastHandledCallKey: String = ""
     private var lastHandledCallTime: Date = .distantPast
 
+    public private(set) var pendingOpenUrl: URL?
+
+    public func consumePendingOpenUrl() -> URL? {
+        let url = pendingOpenUrl
+        pendingOpenUrl = nil
+        return url
+    }
+
     public init(apiClient: AgentNotiApiClient? = nil) {
         self.apiClient = apiClient ?? AgentNotiApiClient()
     }
@@ -223,6 +231,7 @@ public final class AgentNotiFeature: @unchecked Sendable {
     }
 
     public func declineCall(callKey: String?) {
+        AgentNotiCallKitManager.shared.reportCallEnded(callKey: callKey, reason: .declinedElsewhere)
         guard let callKey = callKey, !callKey.isEmpty else { return }
         guard let agentId = getSavedAgentId(), let uid = getSavedUserId() else { return }
         Task {
@@ -231,17 +240,27 @@ public final class AgentNotiFeature: @unchecked Sendable {
     }
 
     public func handleIncomingNotification(userInfo: [AnyHashable: Any]) {
-        let eventType = (userInfo["eventType"] as? String) ?? (userInfo["type"] as? String) ?? "message"
-        let callKey = (userInfo["callId"] as? String) ??
-            (userInfo["roomToken"] as? String) ??
-            (userInfo["room"] as? String) ??
-            (userInfo["objectId"] as? String) ?? ""
+        let dataDict = (userInfo["data"] as? [String: Any]) ?? [:]
+
+        func getString(_ keys: [String]) -> String? {
+            for key in keys {
+                if let s = userInfo[key] as? String, !s.isEmpty { return s }
+                if let n = userInfo[key] as? NSNumber { return n.stringValue }
+                if let s = dataDict[key] as? String, !s.isEmpty { return s }
+                if let n = dataDict[key] as? NSNumber { return n.stringValue }
+            }
+            return nil
+        }
+
+        let eventType = getString(["eventType", "type"]) ?? "message"
+        let callKey = getString(["callId", "roomToken", "room", "objectId"]) ?? ""
 
         let isCallCancel = ["call_cancel", "call_end", "call_timeout", "end_call"].contains {
             $0.caseInsensitiveCompare(eventType) == .orderedSame
         }
 
         if isCallCancel {
+            AgentNotiCallKitManager.shared.reportCallEnded(callKey: callKey, reason: .remoteEnded)
             AgentNotiAudioPlayer.shared.stopCallRingtone()
             AgentNotiAudioPlayer.shared.playEndCallSound()
             DispatchQueue.main.async {
@@ -264,11 +283,11 @@ public final class AgentNotiFeature: @unchecked Sendable {
             lastHandledCallTime = now
         }
 
-        let sender = (userInfo["sender"] as? String) ?? (userInfo["callerName"] as? String)
-        let room = userInfo["room"] as? String
-        let isGroup = (userInfo["isGroup"] as? String)?.lowercased() == "true"
+        let sender = getString(["sender", "callerName"])
+        let room = getString(["room"])
+        let isGroup = (getString(["isGroup"]) ?? "").lowercased() == "true"
 
-        var title = (userInfo["title"] as? String) ?? ((userInfo["aps"] as? [String: Any])?["alert"] as? [String: Any])?["title"] as? String
+        var title = getString(["title"]) ?? ((userInfo["aps"] as? [String: Any])?["alert"] as? [String: Any])?["title"] as? String
         if title == nil || title?.isEmpty == true {
             if let sender = sender, !sender.isEmpty {
                 title = (isGroup && room?.isEmpty == false) ? "\(sender) (\(room!))" : sender
@@ -277,27 +296,45 @@ public final class AgentNotiFeature: @unchecked Sendable {
             }
         }
 
-        var body = (userInfo["body"] as? String) ??
-            (userInfo["content"] as? String) ??
+        var body = getString(["body", "content"]) ??
             (((userInfo["aps"] as? [String: Any])?["alert"] as? [String: Any])?["body"] as? String) ?? ""
         if isCall && body.isEmpty {
             body = "Cuộc gọi đến..."
         }
 
+        let avatarUrl = getString(["avatar", "avatar_url", "pic"])
         let finalUrl = buildCallUrl(userInfo: userInfo)
 
         if isCall {
             let timeoutSeconds: TimeInterval = {
-                if let timeoutStr = userInfo["timeout"] as? String, let t = Double(timeoutStr), t > 0 {
+                if let tStr = getString(["timeout"]), let t = Double(tStr), t > 0 {
                     return t
-                }
-                if let tNum = userInfo["timeout"] as? NSNumber, tNum.doubleValue > 0 {
-                    return tNum.doubleValue
                 }
                 return 45.0 // Mặc định 45s tự ngắt nếu không nghe máy
             }()
 
+            let caller = title ?? "Cuộc gọi đến"
+
+            // Báo CallKit để bung giao diện cuộc gọi toàn màn hình (kể cả khi màn hình tắt hoặc app chạy ngầm)
+            AgentNotiCallKitManager.shared.reportIncomingCall(
+                callerName: caller,
+                callKey: callKey,
+                callUrl: finalUrl
+            ) { [weak self] success in
+                if !success {
+                    DispatchQueue.main.async {
+                        self?.showCallNotification(
+                            title: caller,
+                            body: body,
+                            url: finalUrl,
+                            callKey: callKey
+                        )
+                    }
+                }
+            }
+
             AgentNotiAudioPlayer.shared.startCallRingtone(timeoutInterval: timeoutSeconds) { [weak self] in
+                AgentNotiCallKitManager.shared.reportCallEnded(callKey: callKey, reason: .unanswered)
                 DispatchQueue.main.async {
                     NotificationCenter.default.post(name: NSNotification.Name("AgentNotiRemoteCallEnded"), object: nil)
                     IncomingCallViewController.activeInstance?.dismiss(animated: true)
@@ -307,7 +344,23 @@ public final class AgentNotiFeature: @unchecked Sendable {
             }
 
             DispatchQueue.main.async {
-                self.presentIncomingCallScreen(caller: title ?? "Cuộc gọi đến", callUrl: finalUrl, callKey: callKey)
+                let appState = UIApplication.shared.applicationState
+                if appState == .active {
+                    self.presentIncomingCallScreen(
+                        caller: caller,
+                        callUrl: finalUrl,
+                        callKey: callKey,
+                        avatarUrl: avatarUrl,
+                        timeoutSeconds: timeoutSeconds
+                    )
+                } else {
+                    self.showCallNotification(
+                        title: caller,
+                        body: body,
+                        url: finalUrl,
+                        callKey: callKey
+                    )
+                }
             }
         } else {
             showLocalNotification(title: title ?? "DINO", body: body, url: finalUrl)
@@ -315,48 +368,81 @@ public final class AgentNotiFeature: @unchecked Sendable {
     }
 
     public func buildCallUrl(userInfo: [AnyHashable: Any]) -> String {
-        let eventType = (userInfo["eventType"] as? String) ?? (userInfo["type"] as? String) ?? "message"
-        let callKey = (userInfo["callId"] as? String) ??
-            (userInfo["roomToken"] as? String) ??
-            (userInfo["room"] as? String) ??
-            (userInfo["objectId"] as? String) ?? ""
-        let room = userInfo["room"] as? String
-        let defaultBase = getSavedBaseWebUrl()
+        let dataDict = (userInfo["data"] as? [String: Any]) ?? [:]
+
+        func getString(_ keys: [String]) -> String? {
+            for key in keys {
+                if let s = userInfo[key] as? String, !s.isEmpty { return s }
+                if let n = userInfo[key] as? NSNumber { return n.stringValue }
+                if let s = dataDict[key] as? String, !s.isEmpty { return s }
+                if let n = dataDict[key] as? NSNumber { return n.stringValue }
+            }
+            return nil
+        }
+
+        let eventType = getString(["eventType", "type"]) ?? "message"
+        let callKey = getString(["callId", "roomToken", "room", "objectId"]) ?? ""
+        let room = getString(["room"])
+        var base = getSavedBaseWebUrl()
+        while base.hasSuffix("/") {
+            base.removeLast()
+        }
         let tokenRoom = !callKey.isEmpty ? callKey : (room ?? "")
 
         if eventType.caseInsensitiveCompare("call") == .orderedSame {
-            return "\(defaultBase)?path=call/\(tokenRoom)&param=callNoti"
+            return "\(base)?path=call/\(tokenRoom)&param=callNoti"
         } else if eventType.caseInsensitiveCompare("message") == .orderedSame && !tokenRoom.isEmpty {
-            return "\(defaultBase)?path=call/\(tokenRoom)&param=messageNoti"
+            return "\(base)?path=call/\(tokenRoom)&param=messageNoti"
         } else {
-            return (userInfo["targetUrl"] as? String) ??
-                (userInfo["url"] as? String) ??
-                (userInfo["openUrl"] as? String) ??
-                defaultBase
+            return getString(["targetUrl", "url", "openUrl"]) ?? base
         }
     }
 
     public func removeDeliveredCallNotification(callKey: String) {
-        UNUserNotificationCenter.current().getDeliveredNotifications { notifications in
+        let center = UNUserNotificationCenter.current()
+        center.getDeliveredNotifications { notifications in
             let matchingIds = notifications.filter { notification in
                 let userInfo = notification.request.content.userInfo
+                let dataDict = userInfo["data"] as? [String: Any]
                 let key = (userInfo["callId"] as? String) ??
                     (userInfo["roomToken"] as? String) ??
                     (userInfo["room"] as? String) ??
-                    (userInfo["objectId"] as? String) ?? ""
-                return (!callKey.isEmpty && key == callKey) ||
-                       (!callKey.isEmpty && notification.request.identifier.contains(callKey)) ||
-                       (notification.request.content.categoryIdentifier == "DINO_INCOMING_CALL")
+                    (userInfo["objectId"] as? String) ??
+                    (dataDict?["callId"] as? String) ??
+                    (dataDict?["roomToken"] as? String) ??
+                    (dataDict?["room"] as? String) ??
+                    (dataDict?["objectId"] as? String) ?? ""
+                return (!callKey.isEmpty && (key == callKey || notification.request.identifier.contains(callKey))) ||
+                       (notification.request.content.categoryIdentifier == DinoCallNotificationCategory.categoryIdentifier)
             }.map { $0.request.identifier }
 
             if !matchingIds.isEmpty {
-                UNUserNotificationCenter.current().removeDeliveredNotifications(withIdentifiers: matchingIds)
+                center.removeDeliveredNotifications(withIdentifiers: matchingIds)
+            }
+        }
+        center.getPendingNotificationRequests { requests in
+            let matchingPending = requests.filter { req in
+                let userInfo = req.content.userInfo
+                let key = (userInfo["callId"] as? String) ??
+                    (userInfo["roomToken"] as? String) ?? ""
+                return (!callKey.isEmpty && (key == callKey || req.identifier.contains(callKey))) ||
+                       (req.content.categoryIdentifier == DinoCallNotificationCategory.categoryIdentifier)
+            }.map { $0.identifier }
+
+            if !matchingPending.isEmpty {
+                center.removePendingNotificationRequests(withIdentifiers: matchingPending)
             }
         }
     }
 
     @MainActor
-    private func presentIncomingCallScreen(caller: String, callUrl: String, callKey: String) {
+    private func presentIncomingCallScreen(
+        caller: String,
+        callUrl: String,
+        callKey: String,
+        avatarUrl: String? = nil,
+        timeoutSeconds: TimeInterval = 45.0
+    ) {
         if IncomingCallViewController.activeInstance != nil {
             return
         }
@@ -382,6 +468,8 @@ public final class AgentNotiFeature: @unchecked Sendable {
         callVC.callerName = caller
         callVC.callUrl = callUrl
         callVC.callKey = callKey
+        callVC.avatarUrl = avatarUrl
+        callVC.timeoutInterval = timeoutSeconds
         callVC.onCallAccepted = { [weak self] targetUrl in
             self?.openUrlInBrowser(targetUrl)
         }
@@ -393,11 +481,33 @@ public final class AgentNotiFeature: @unchecked Sendable {
 
     public func openUrlInBrowser(_ urlString: String) {
         guard let url = URL(string: urlString) else { return }
-        NotificationCenter.default.post(
-            name: NSNotification.Name("AgentNotiOpenURLInBrowser"),
-            object: nil,
-            userInfo: ["url": url]
-        )
+        self.pendingOpenUrl = url
+        DispatchQueue.main.async {
+            NotificationCenter.default.post(
+                name: NSNotification.Name("AgentNotiOpenURLInBrowser"),
+                object: nil,
+                userInfo: ["url": url]
+            )
+        }
+    }
+
+    private func showCallNotification(title: String, body: String, url: String, callKey: String) {
+        let content = UNMutableNotificationContent()
+        content.title = title
+        content.body = body.isEmpty ? "Cuộc gọi đến..." : body
+        content.categoryIdentifier = DinoCallNotificationCategory.categoryIdentifier
+        content.sound = .default
+        content.userInfo = [
+            "eventType": "call",
+            "callId": callKey,
+            "roomToken": callKey,
+            "targetUrl": url
+        ]
+
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 0.1, repeats: false)
+        let identifier = !callKey.isEmpty ? "dino_call_\(callKey)" : UUID().uuidString
+        let request = UNNotificationRequest(identifier: identifier, content: content, trigger: trigger)
+        UNUserNotificationCenter.current().add(request)
     }
 
     private func showLocalNotification(title: String, body: String, url: String) {
@@ -517,7 +627,7 @@ public final class AgentNotiFeature: @unchecked Sendable {
     public func saveBaseWebUrl(_ urlString: String) {
         guard let url = URL(string: urlString),
               let host = url.host?.lowercased(),
-              host.contains("dino.top") || host.contains("vietravel") else {
+              host.contains("dino.top") else {
             return
         }
         let scheme = url.scheme ?? "https"
