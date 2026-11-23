@@ -142,7 +142,7 @@ let package = Package(
                 .copy("Resources/hackernews.svg")
             ],
             swiftSettings: [
-            ],
+            ]
         ),
         .target(
             name: "Common",

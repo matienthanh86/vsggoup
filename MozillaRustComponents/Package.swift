@@ -29,8 +29,8 @@ let package = Package(
             path: "Sources/MozillaRustComponentsWrapper",
             swiftSettings: [
                 .enableExperimentalFeature("StrictConcurrency"),
-                .unsafeFlags(["-enable-testing"]),
-            ],
+                .unsafeFlags(["-enable-testing"])
+            ]
         ),
         .target(
             name: "FocusAppServices",
