@@ -17998,11 +17998,6 @@
 			path = Redux;
 			sourceTree = "<group>";
 		};
-			isa = PBXGroup;
-			children = (
-			);
-			sourceTree = "<group>";
-		};
 		ED371A692CB885B20099F3C8 /* Views */ = {
 			isa = PBXGroup;
 			children = (
