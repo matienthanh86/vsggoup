@@ -37,12 +37,12 @@ jobs:
         run: |
           echo "Available Xcode versions:"
           ls -d /Applications/Xcode* || true
-          TARGET_XCODE=$(ls -d /Applications/Xcode_2*.app 2>/dev/null | sort -V | tail -n 1)
+          TARGET_XCODE=$(ls -d /Applications/Xcode_2*.app 2>/dev/null | grep -viE "beta|rc|seed" | sort -V | tail -n 1)
           if [ -z "$TARGET_XCODE" ]; then
-            TARGET_XCODE=$(ls -d /Applications/Xcode_16*.app 2>/dev/null | sort -V | tail -n 1)
+            TARGET_XCODE=$(ls -d /Applications/Xcode_16*.app 2>/dev/null | grep -viE "beta|rc|seed" | sort -V | tail -n 1)
           fi
           if [ -z "$TARGET_XCODE" ]; then
-            TARGET_XCODE=$(ls -d /Applications/Xcode*.app 2>/dev/null | sort -V | tail -n 1)
+            TARGET_XCODE=$(ls -d /Applications/Xcode*.app 2>/dev/null | grep -viE "beta|rc|seed" | sort -V | tail -n 1)
           fi
           if [ -n "$TARGET_XCODE" ]; then
             echo "Selected Xcode: $TARGET_XCODE"
@@ -256,29 +256,14 @@ jobs:
             VSG_ICON_SRC="$VSG_ICON_SRC" VSG_DARK_SRC="firefox-ios/Client/Assets/AppIcons.xcassets/AppIcon.appiconset/appstore-dark.png" ASSETS_CAR="$ASSETS_CAR" python3 scripts/patch_assets_car.py || true
           fi
 
-          # Patch Display Name, Build Number, and SDK version in Info.plist
-          echo "Patching CFBundleVersion ($TARGET_BUILD) and SDK version in Info.plist..."
+          # Patch Display Name and Build Number in Info.plist (keep native GM Xcode 26 / iOS 26 SDK metadata untouched)
+          echo "Patching CFBundleVersion ($TARGET_BUILD) in Info.plist..."
           /usr/libexec/PlistBuddy -c "Set :CFBundleDisplayName VSG Group" "$APP_PATH/Info.plist" 2>/dev/null || /usr/libexec/PlistBuddy -c "Add :CFBundleDisplayName string VSG Group" "$APP_PATH/Info.plist" 2>/dev/null || true
           /usr/libexec/PlistBuddy -c "Set :CFBundleName VSG Group" "$APP_PATH/Info.plist" 2>/dev/null || /usr/libexec/PlistBuddy -c "Add :CFBundleName string VSG Group" "$APP_PATH/Info.plist" 2>/dev/null || true
 
           find "$APP_PATH" -name "Info.plist" | while read -r plist; do
             /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $TARGET_BUILD" "$plist" 2>/dev/null || /usr/libexec/PlistBuddy -c "Add :CFBundleVersion string $TARGET_BUILD" "$plist" 2>/dev/null || true
             /usr/libexec/PlistBuddy -c "Set :MinimumOSVersion 15.0" "$plist" 2>/dev/null || /usr/libexec/PlistBuddy -c "Add :MinimumOSVersion string 15.0" "$plist" 2>/dev/null || true
-            /usr/libexec/PlistBuddy -c "Set :DTPlatformVersion 27.0" "$plist" 2>/dev/null || /usr/libexec/PlistBuddy -c "Add :DTPlatformVersion string 27.0" "$plist" 2>/dev/null || true
-            /usr/libexec/PlistBuddy -c "Set :DTSDKName iphoneos27.0" "$plist" 2>/dev/null || /usr/libexec/PlistBuddy -c "Add :DTSDKName string iphoneos27.0" "$plist" 2>/dev/null || true
-            /usr/libexec/PlistBuddy -c "Set :DTSDKBuild 27A528" "$plist" 2>/dev/null || /usr/libexec/PlistBuddy -c "Add :DTSDKBuild string 27A528" "$plist" 2>/dev/null || true
-            /usr/libexec/PlistBuddy -c "Set :DTXcode 2700" "$plist" 2>/dev/null || /usr/libexec/PlistBuddy -c "Add :DTXcode string 2700" "$plist" 2>/dev/null || true
-            /usr/libexec/PlistBuddy -c "Set :DTXcodeBuild 27A528" "$plist" 2>/dev/null || /usr/libexec/PlistBuddy -c "Add :DTXcodeBuild string 27A528" "$plist" 2>/dev/null || true
-          done
-
-          # Update Mach-O LC_BUILD_VERSION SDK version to 27.0 if vtool is available
-          find "$APP_PATH" -type f -perm +111 | while read -r bin; do
-            if file "$bin" | grep -q "Mach-O"; then
-              if vtool -show-build "$bin" 2>/dev/null | grep -qi "platform ios"; then
-                echo "Updating Mach-O SDK version to 27.0 in $bin"
-                vtool -set-build-version ios 15.0 27.0 -replace -output "$bin.vtool" "$bin" 2>/dev/null && mv "$bin.vtool" "$bin" || true
-              fi
-            fi
           done
 
           # Codesign for App Store (if cert is available) or ad-hoc sign for test
