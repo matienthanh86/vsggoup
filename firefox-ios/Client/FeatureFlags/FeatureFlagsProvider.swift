@@ -27,6 +27,9 @@ final class FeatureFlagsProvider: FeatureFlagProviding, @unchecked Sendable {
 
     /// Used for checking the status of a feature flag from the feature flag backend
     func isEnabled(_ flag: FeatureFlagID) -> Bool {
+        if flag == .translation || flag == .translationLanguagePicker {
+            return false
+        }
         return backendLayer.checkNimbusConfigFor(flag, with: prefs)
     }
 

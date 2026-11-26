@@ -243,10 +243,10 @@ struct MainMenuConfigurationUtility: Equatable, FeatureFlaggable {
             options.append(configureSummarizerItem(with: uuid, tabInfo: tabInfo))
         }
         options.append(configureUserAgentItem(with: uuid, tabInfo: tabInfo))
+        options.append(configureZoomItem(with: uuid, and: tabInfo))
         if !isExpanded {
             options.append(configureMoreLessItem(with: uuid, tabInfo: tabInfo, isExpanded: isExpanded))
         } else {
-            options.append(configureZoomItem(with: uuid, and: tabInfo))
             if let translationItem = configureTranslationItem(with: uuid, tabInfo: tabInfo, localeProvider: localeProvider) {
                 options.append(translationItem)
             }
@@ -595,7 +595,6 @@ struct MainMenuConfigurationUtility: Equatable, FeatureFlaggable {
             a11yLabel: .MainMenu.ToolsSection.AccessibilityLabels.PageZoom,
             a11yHint: "\(zoomSymbol)\(zoomLevel)",
             a11yId: AccessibilityIdentifiers.MainMenu.zoom,
-            isOptional: true,
             infoTitle: "\(zoomLevel)",
             action: {
                 store.dispatch(

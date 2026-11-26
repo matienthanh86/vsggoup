@@ -79,7 +79,8 @@ enum NavigationActionsBuilder {
 
         let actions = [backAction(enabled: canGoBack),
                        forwardAction(enabled: canGoForward),
-                       middleAction] + trailingActions
+                       homeAction,
+                       searchAction] + trailingActions
         return actions
     }
 
