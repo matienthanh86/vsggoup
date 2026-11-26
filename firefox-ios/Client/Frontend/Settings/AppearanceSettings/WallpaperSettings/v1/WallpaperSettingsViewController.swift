@@ -3,6 +3,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import Common
+import PhotosUI
 import UIKit
 
 class WallpaperSettingsViewController: WallpaperBaseViewController, Themeable {
@@ -35,6 +36,36 @@ class WallpaperSettingsViewController: WallpaperBaseViewController, Themeable {
 
     // Views
     private lazy var contentView: UIView = .build { _ in }
+
+    private lazy var customWallpaperBar: UIStackView = .build { stack in
+        stack.axis = .horizontal
+        stack.spacing = 12
+        stack.distribution = .fillEqually
+    }
+
+    private lazy var choosePhotoButton: UIButton = .build { button in
+        var config = UIButton.Configuration.filled()
+        config.title = Locale.current.language.languageCode?.identifier == "vi"
+            ? "Chọn ảnh từ thư viện"
+            : "Choose from Photos"
+        config.image = UIImage(systemName: "photo.on.rectangle")
+        config.imagePadding = 8
+        config.cornerStyle = .medium
+        button.configuration = config
+        button.addTarget(self, action: #selector(self.choosePhotoTapped), for: .touchUpInside)
+    }
+
+    private lazy var resetDefaultButton: UIButton = .build { button in
+        var config = UIButton.Configuration.tinted()
+        config.title = Locale.current.language.languageCode?.identifier == "vi"
+            ? "Mặc định"
+            : "Reset Default"
+        config.image = UIImage(systemName: "arrow.counterclockwise")
+        config.imagePadding = 6
+        config.cornerStyle = .medium
+        button.configuration = config
+        button.addTarget(self, action: #selector(self.resetDefaultTapped), for: .touchUpInside)
+    }
 
     private lazy var collectionView: UICollectionView = {
         let collectionView = UICollectionView(frame: .zero,
@@ -166,6 +197,10 @@ private extension WallpaperSettingsViewController {
     func setupView() {
         configureCollectionView()
 
+        customWallpaperBar.addArrangedSubview(choosePhotoButton)
+        customWallpaperBar.addArrangedSubview(resetDefaultButton)
+
+        contentView.addSubview(customWallpaperBar)
         contentView.addSubview(collectionView)
         view.addSubview(contentView)
 
@@ -175,11 +210,37 @@ private extension WallpaperSettingsViewController {
             contentView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
             contentView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
 
-            collectionView.topAnchor.constraint(equalTo: contentView.topAnchor),
+            customWallpaperBar.topAnchor.constraint(equalTo: contentView.safeAreaLayoutGuide.topAnchor, constant: 12),
+            customWallpaperBar.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 16),
+            customWallpaperBar.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -16),
+            customWallpaperBar.heightAnchor.constraint(equalToConstant: 44),
+
+            collectionView.topAnchor.constraint(equalTo: customWallpaperBar.bottomAnchor, constant: 8),
             collectionView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
             collectionView.bottomAnchor.constraint(equalTo: contentView.bottomAnchor),
             collectionView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
         ])
+    }
+
+    @objc
+    func choosePhotoTapped() {
+        var config = PHPickerConfiguration(photoLibrary: .shared())
+        config.selectionLimit = 1
+        config.filter = .images
+        let picker = PHPickerViewController(configuration: config)
+        picker.delegate = self
+        present(picker, animated: true)
+    }
+
+    @objc
+    func resetDefaultTapped() {
+        WallpaperManager().setCurrentWallpaper(to: Wallpaper.baseWallpaper) { [weak self] result in
+            ensureMainThread {
+                if case .success = result {
+                    self?.showToast()
+                }
+            }
+        }
     }
 
     func configureCollectionView() {
@@ -298,6 +359,46 @@ extension WallpaperSettingsViewController: Notifiable {
                 self.collectionView.reloadData()
             }
         default: break
+        }
+    }
+}
+
+// MARK: - PHPickerViewControllerDelegate
+extension WallpaperSettingsViewController: PHPickerViewControllerDelegate {
+    func picker(_ picker: PHPickerViewController, didFinishPicking results: [PHPickerResult]) {
+        picker.dismiss(animated: true)
+        guard let provider = results.first?.itemProvider,
+              provider.canLoadObject(ofClass: UIImage.self) else { return }
+
+        provider.loadObject(ofClass: UIImage.self) { [weak self] object, _ in
+            guard let image = object as? UIImage else { return }
+            let customID = "customUserWallpaper"
+            let customWallpaper = Wallpaper(
+                id: customID,
+                textColor: nil,
+                cardColor: nil,
+                logoTextColor: nil
+            )
+            let storageUtility = WallpaperStorageUtility()
+            do {
+                try storageUtility.store(image, withName: customWallpaper.thumbnailID)
+                for imageType in WallpaperImageType.allCases {
+                    try storageUtility.store(image, withName: customWallpaper.fileName(for: imageType))
+                }
+                ensureMainThread {
+                    WallpaperManager().setCurrentWallpaper(to: customWallpaper) { result in
+                        ensureMainThread {
+                            if case .success = result {
+                                self?.showToast()
+                            }
+                        }
+                    }
+                }
+            } catch {
+                self?.logger.log("Failed to save custom wallpaper: \(error.localizedDescription)",
+                                 level: .warning,
+                                 category: .homepage)
+            }
         }
     }
 }

@@ -410,7 +410,7 @@ final class LocationView: UIView,
         let shouldShowSearchIcon = hasPageContent && isDisplayingSearchTerm
         let shouldShowLockIcon = hasPageContent && !isDisplayingSearchTerm && lockIconImageName != nil
 
-        let searchEngineAlpha: CGFloat = (shouldShowLockIcon || shouldShowSearchIcon) ? 0 : 1
+        let searchEngineAlpha: CGFloat = 0
         let lockIconAlpha: CGFloat = shouldShowLockIcon ? 1 : 0
         let searchIconAlpha: CGFloat = shouldShowSearchIcon ? 1 : 0
 
@@ -436,8 +436,7 @@ final class LocationView: UIView,
     }
 
     private func updateUIForSearchEngineDisplay(isURLTextFieldCentered: Bool) {
-        let shouldShowSearchEngine = !isURLTextFieldCentered || isEditing
-        setContainerIcons(shouldShowSearchEngine ? [searchEngineContentView] : [])
+        setContainerIcons([])
         updateURLTextFieldLeadingConstraint(constant: UX.horizontalSpace)
         iconContainerStackViewLeadingConstraint?.constant = UX.horizontalSpace
         updateGradient()

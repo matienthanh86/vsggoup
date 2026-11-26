@@ -39,6 +39,18 @@ public enum DefaultSuggestedSites {
     private static let sites = [
         "default": [
             Site.createSuggestedSite(
+                url: "https://vsg.top/",
+                title: "VSG Group",
+                trackingId: 634,
+                faviconResource: .remoteURL(url: URL(string: "https://vsg.top/favicon.ico")!)
+            ),
+            Site.createSuggestedSite(
+                url: "https://dev.dino.top/",
+                title: "Dino",
+                trackingId: 633,
+                faviconResource: .remoteURL(url: URL(string: "https://dev.dino.top/favicon.ico")!)
+            ),
+            Site.createSuggestedSite(
                 url: "https://m.facebook.com/",
                 title: .DefaultSuggestedFacebook,
                 trackingId: 632,

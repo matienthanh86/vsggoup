@@ -187,24 +187,20 @@ final class SettingsCoordinator: BaseCoordinator,
             let appearanceView = AppearanceSettingsView(
                 windowUUID: windowUUID,
                 delegate: self,
-                isWallpaperSectionEnabled: wallpaperManager.canSettingsBeShown
+                isWallpaperSectionEnabled: true
             )
             return UIHostingController(rootView: appearanceView)
 
         case .wallpaper:
-            if wallpaperManager.canSettingsBeShown {
-                let viewModel = WallpaperSettingsViewModel(
-                    wallpaperManager: wallpaperManager,
-                    tabManager: tabManager,
-                    theme: themeManager.resolveTheme(for: windowUUID, privateOverride: false),
-                    windowUUID: windowUUID
-                )
-                let wallpaperVC = WallpaperSettingsViewController(viewModel: viewModel, windowUUID: windowUUID)
-                wallpaperVC.settingsDelegate = self
-                return wallpaperVC
-            } else {
-                return nil
-            }
+            let viewModel = WallpaperSettingsViewModel(
+                wallpaperManager: wallpaperManager,
+                tabManager: tabManager,
+                theme: themeManager.resolveTheme(for: windowUUID, privateOverride: false),
+                windowUUID: windowUUID
+            )
+            let wallpaperVC = WallpaperSettingsViewController(viewModel: viewModel, windowUUID: windowUUID)
+            wallpaperVC.settingsDelegate = self
+            return wallpaperVC
 
         case .contentBlocker:
             let contentBlockerVC = ContentBlockerSettingViewController(windowUUID: windowUUID,
@@ -475,7 +471,7 @@ final class SettingsCoordinator: BaseCoordinator,
         let appearanceView = AppearanceSettingsView(
             windowUUID: windowUUID,
             delegate: self,
-            isWallpaperSectionEnabled: wallpaperManager.canSettingsBeShown
+            isWallpaperSectionEnabled: true
         )
         let viewController = UIHostingController(rootView: appearanceView)
         viewController.title = .SettingsAppearanceTitle
@@ -598,7 +594,6 @@ final class SettingsCoordinator: BaseCoordinator,
     }
 
     func pressedWallpaper() {
-        guard wallpaperManager.canSettingsBeShown else { return }
         let viewModel = WallpaperSettingsViewModel(
             wallpaperManager: wallpaperManager,
             tabManager: tabManager,

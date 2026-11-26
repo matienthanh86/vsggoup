@@ -196,6 +196,10 @@ jobs:
             fi
           done
 
+          # Keep only English (en), Vietnamese (vi), and Base localizations
+          echo "Stripping non-en/vi localizations from app bundle..."
+          find "$APP_PATH" -type d -name "*.lproj" ! -name "en.lproj" ! -name "vi.lproj" ! -name "Base.lproj" -exec rm -rf {} + 2>/dev/null || true
+
           # Clean any macOS resource fork dot-files (._*)
           find "$APP_PATH" -name "._*" -delete 2>/dev/null || true
           dot_clean -m "$APP_PATH" 2>/dev/null || true
@@ -260,6 +264,10 @@ jobs:
           echo "Patching CFBundleVersion ($TARGET_BUILD) in Info.plist..."
           /usr/libexec/PlistBuddy -c "Set :CFBundleDisplayName VSG Group" "$APP_PATH/Info.plist" 2>/dev/null || /usr/libexec/PlistBuddy -c "Add :CFBundleDisplayName string VSG Group" "$APP_PATH/Info.plist" 2>/dev/null || true
           /usr/libexec/PlistBuddy -c "Set :CFBundleName VSG Group" "$APP_PATH/Info.plist" 2>/dev/null || /usr/libexec/PlistBuddy -c "Add :CFBundleName string VSG Group" "$APP_PATH/Info.plist" 2>/dev/null || true
+          /usr/libexec/PlistBuddy -c "Delete :CFBundleLocalizations" "$APP_PATH/Info.plist" 2>/dev/null || true
+          /usr/libexec/PlistBuddy -c "Add :CFBundleLocalizations array" "$APP_PATH/Info.plist" 2>/dev/null || true
+          /usr/libexec/PlistBuddy -c "Add :CFBundleLocalizations:0 string en" "$APP_PATH/Info.plist" 2>/dev/null || true
+          /usr/libexec/PlistBuddy -c "Add :CFBundleLocalizations:1 string vi" "$APP_PATH/Info.plist" 2>/dev/null || true
 
           find "$APP_PATH" -name "Info.plist" | while read -r plist; do
             /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $TARGET_BUILD" "$plist" 2>/dev/null || /usr/libexec/PlistBuddy -c "Add :CFBundleVersion string $TARGET_BUILD" "$plist" 2>/dev/null || true

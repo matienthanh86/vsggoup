@@ -4975,9 +4975,9 @@ extension String {
             value: nil,
             comment: "Title displayed for when there are no open tabs while in private mode")
         public static let TabTrayPrivateBrowsingDescription =  MZLocalizedString(
-            key: "Firefox won’t remember any of your history or cookies, but new bookmarks will be saved.",
+            key: "VSG Group won’t remember any of your history or cookies, but new bookmarks will be saved.",
             tableName: "PrivateBrowsing",
-            value: nil,
+            value: "VSG Group won’t remember any of your history or cookies, but new bookmarks will be saved.",
             comment: "Description text displayed when there are no open tabs while in private mode")
         public static let TabTrayAddTabAccessibilityLabel = MZLocalizedString(
             key: "Add Tab",
