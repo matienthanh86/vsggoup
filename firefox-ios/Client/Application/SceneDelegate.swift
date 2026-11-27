@@ -243,10 +243,11 @@ class SceneDelegate: UIResponder,
         }
 
         let windowManager: WindowManager = AppContainer.shared.resolve()
-        for tm in windowManager.allWindowTabManagers() {
+        let tabManagers = windowManager.allWindowTabManagers()
+        for tm in tabManagers {
             if let existingTab = tm.tabs.first(where: {
                 guard let host = $0.url?.host?.lowercased() else { return false }
-                return host.contains("dev.dino.top") || (host.contains("dino.top") && !host.contains("cloud.dino.top"))
+                return host.contains("dino.top")
             }) {
                 tm.selectTab(existingTab, previous: tm.selectedTab, immediatePreservation: true)
                 _ = existingTab.loadRequest(URLRequest(url: url))
@@ -255,11 +256,6 @@ class SceneDelegate: UIResponder,
                 }
                 return
             }
-        }
-
-        if let scheme = url.scheme?.lowercased(), scheme == "http" || scheme == "https" {
-            handle(route: .search(url: url, isPrivate: false))
-            return
         }
 
         // Before processing the incoming URL, check if it is a widget that is opening a tab via UUID.
