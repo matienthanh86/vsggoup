@@ -59,7 +59,10 @@ class SceneDelegate: UIResponder,
             object: nil,
             queue: .main
         ) { [weak self] notif in
-            guard let url = notif.userInfo?["url"] as? URL else { return }
+            guard UIApplication.shared.applicationState == .active,
+                  let url = notif.userInfo?["url"] as? URL else {
+                return
+            }
             _ = AgentNotiFeature.shared.consumePendingOpenUrl()
             self?.handleOpenURL(url)
         }

@@ -316,50 +316,43 @@ public final class AgentNotiFeature: @unchecked Sendable {
             let caller = title ?? "Cuộc gọi đến"
 
             // Báo CallKit để bung giao diện cuộc gọi toàn màn hình (kể cả khi màn hình tắt hoặc app chạy ngầm)
+            // Chỉ fallback sang nhạc chuông / màn hình custom / local notification nếu CallKit thất bại
             AgentNotiCallKitManager.shared.reportIncomingCall(
                 callerName: caller,
                 callKey: callKey,
                 callUrl: finalUrl
             ) { [weak self] success in
-                if !success {
+                guard !success else { return }
+
+                AgentNotiAudioPlayer.shared.startCallRingtone(timeoutInterval: timeoutSeconds) { [weak self] in
+                    AgentNotiCallKitManager.shared.reportCallEnded(callKey: callKey, reason: .unanswered)
                     DispatchQueue.main.async {
-                        self?.showCallNotification(
+                        NotificationCenter.default.post(name: NSNotification.Name("AgentNotiRemoteCallEnded"), object: nil)
+                        IncomingCallViewController.activeInstance?.dismiss(animated: true)
+                        self?.removeDeliveredCallNotification(callKey: callKey)
+                    }
+                    self?.declineCall(callKey: callKey)
+                }
+
+                DispatchQueue.main.async {
+                    guard let self else { return }
+                    let appState = UIApplication.shared.applicationState
+                    if appState == .active {
+                        self.presentIncomingCallScreen(
+                            caller: caller,
+                            callUrl: finalUrl,
+                            callKey: callKey,
+                            avatarUrl: avatarUrl,
+                            timeoutSeconds: timeoutSeconds
+                        )
+                    } else {
+                        self.showCallNotification(
                             title: caller,
                             body: body,
                             url: finalUrl,
                             callKey: callKey
                         )
                     }
-                }
-            }
-
-            AgentNotiAudioPlayer.shared.startCallRingtone(timeoutInterval: timeoutSeconds) { [weak self] in
-                AgentNotiCallKitManager.shared.reportCallEnded(callKey: callKey, reason: .unanswered)
-                DispatchQueue.main.async {
-                    NotificationCenter.default.post(name: NSNotification.Name("AgentNotiRemoteCallEnded"), object: nil)
-                    IncomingCallViewController.activeInstance?.dismiss(animated: true)
-                    self?.removeDeliveredCallNotification(callKey: callKey)
-                }
-                self?.declineCall(callKey: callKey)
-            }
-
-            DispatchQueue.main.async {
-                let appState = UIApplication.shared.applicationState
-                if appState == .active {
-                    self.presentIncomingCallScreen(
-                        caller: caller,
-                        callUrl: finalUrl,
-                        callKey: callKey,
-                        avatarUrl: avatarUrl,
-                        timeoutSeconds: timeoutSeconds
-                    )
-                } else {
-                    self.showCallNotification(
-                        title: caller,
-                        body: body,
-                        url: finalUrl,
-                        callKey: callKey
-                    )
                 }
             }
         } else {

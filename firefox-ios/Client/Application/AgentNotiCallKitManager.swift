@@ -130,17 +130,6 @@ public final class AgentNotiCallKitManager: NSObject, CXProviderDelegate, @unche
         if !targetUrl.isEmpty {
             AgentNotiFeature.shared.openUrlInBrowser(targetUrl)
         }
-
-        // Sau khi chuyển vào browser thành công, kết thúc CallKit để nhường quyền Audio/Video hoàn toàn cho WKWebView
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak self] in
-            if let uuid = self?.currentCallUUID {
-                self?.provider?.reportCall(with: uuid, endedAt: Date(), reason: .answeredElsewhere)
-                self?.currentCallUUID = nil
-                self?.currentCallKey = nil
-                self?.currentCallUrl = nil
-                self?.currentCallerName = nil
-            }
-        }
     }
 
     /// Người dùng bấm "Từ chối" (Decline) trên màn hình khóa hoặc giao diện CallKit
