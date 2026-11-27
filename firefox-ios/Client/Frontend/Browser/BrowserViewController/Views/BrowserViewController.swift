@@ -118,6 +118,22 @@ class BrowserViewController: UIViewController,
     var keyboardBackdrop: UIView?
     var pendingToast: Toast? // A toast that might be waiting for BVC to appear before displaying
     var downloadToast: DownloadToast? // A toast that is showing the combined download progress
+
+    private lazy var floatingAIButton: FloatingAIButton = {
+        let button = FloatingAIButton()
+        button.onTap = { [weak self] in
+            self?.presentDinoAIModal()
+        }
+        return button
+    }()
+
+    private lazy var dinoAIModalViewController: DinoAIModalViewController = {
+        let modalVC = DinoAIModalViewController()
+        modalVC.onOpenInNewTab = { [weak self] url in
+            self?.openURLInNewTab(url)
+        }
+        return modalVC
+    }()
     var downloadProgressManager: DownloadProgressManager?
     let tabsPanelTelemetry: TabsPanelTelemetry
     let toolbarTelemetry: ToolbarTelemetry
@@ -1497,6 +1513,7 @@ class BrowserViewController: UIViewController,
         // add overKeyboardContainer after bottomContainer so the address toolbar shadow
         // for bottom toolbar doesn't get clipped
         view.addSubview(overKeyboardContainer)
+        view.addSubview(floatingAIButton)
 
         if isSwipingTabsEnabled {
             tabSwipeGestureHandler?.newTabSettingsProvider = { [weak self] in
@@ -1606,6 +1623,21 @@ class BrowserViewController: UIViewController,
 
         // Update available height for the homepage
         dispatchAvailableContentHeightChangedAction()
+
+        view.bringSubviewToFront(floatingAIButton)
+        floatingAIButton.repositionInSuperviewIfNeeded()
+    }
+
+    private func presentDinoAIModal() {
+        guard presentedViewController == nil else { return }
+        if let sheet = dinoAIModalViewController.sheetPresentationController {
+            sheet.detents = [.medium(), .large()]
+            sheet.selectedDetentIdentifier = .large
+            sheet.prefersGrabberVisible = true
+            sheet.prefersScrollingExpandsWhenScrolledToEdge = false
+            sheet.preferredCornerRadius = 20
+        }
+        present(dinoAIModalViewController, animated: true)
     }
 
     func checkForJSAlerts() {
