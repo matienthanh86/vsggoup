@@ -220,29 +220,16 @@ class SceneDelegate: UIResponder,
             presented.dismiss(animated: false)
         }
 
-        // VSG Group: Quét danh sách các tab đang mở
-        // Nếu có tab đã mở dev.dino.top (hoặc host chứa dino.top), focus thẳng vào tab đó thay vì mở thêm tab mới
-        let windowManager: WindowManager = AppContainer.shared.resolve()
-        let tabManagers = windowManager.allWindowTabManagers()
-        for tm in tabManagers {
-            if let existingTab = tm.tabs.first(where: {
-                guard let host = $0.url?.host?.lowercased() else { return false }
-                return host.contains("dino.top")
-            }) {
-                tm.selectTab(existingTab, previous: tm.selectedTab, immediatePreservation: true)
-                _ = existingTab.loadRequest(URLRequest(url: url))
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                    _ = existingTab.loadRequest(URLRequest(url: url))
-                }
-                return
-            }
-        }
-
-        // Luôn mở tab thường (không mở tab ẩn danh) để tab được lưu vĩnh viễn, không bị mất khi restart máy
+        // Luôn mở tab thường mới (không ghi đè tab cũ và không mở tab ẩn danh) để giữ nguyên tab chat nền
         routeBuilder.configure(
             isPrivate: false,
             prefs: profile.prefs
         )
+
+        if let scheme = url.scheme?.lowercased(), scheme == "http" || scheme == "https" {
+            handle(route: .search(url: url, isPrivate: false))
+            return
+        }
 
         // Before processing the incoming URL, check if it is a widget that is opening a tab via UUID.
         // If so, we want to be sure that we select the tab in the correct iPad window.

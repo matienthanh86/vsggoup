@@ -87,7 +87,7 @@
 		</dict>
 	</array>
 	<key>CFBundleVersion</key>
-	<string>17</string>
+	<string>18</string>
 	<key>CHANNEL</key>
 	<string>$(CHANNEL)</string>
 	<key>INIntentsSupported</key>
