@@ -52,12 +52,6 @@ enum NavigationActionsBuilder {
                                             nextTabScreenshot: UIImage?,
                                             isPrivateMode: Bool,
                                             isNovaDesignEnabled: Bool) -> [ToolbarActionConfiguration] {
-        let customizedMiddleButton = switch middleButton {
-        case .home: homeAction
-        case .newTab: newTabAction
-        }
-        let middleAction = isHomepage ? searchAction : customizedMiddleButton
-
         let iconName: String? = switch tabTrayButtonStyle {
         case .number, .none: StandardImageIdentifiers.Large.tab
         case .screenshot: nil

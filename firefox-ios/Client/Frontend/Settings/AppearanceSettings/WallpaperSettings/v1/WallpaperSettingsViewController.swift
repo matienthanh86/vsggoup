@@ -45,7 +45,7 @@ class WallpaperSettingsViewController: WallpaperBaseViewController, Themeable {
 
     private lazy var choosePhotoButton: UIButton = .build { button in
         var config = UIButton.Configuration.filled()
-        config.title = Locale.current.language.languageCode?.identifier == "vi"
+        config.title = Bundle.main.preferredLocalizations.first == "vi"
             ? "Chọn ảnh từ thư viện"
             : "Choose from Photos"
         config.image = UIImage(systemName: "photo.on.rectangle")
@@ -57,7 +57,7 @@ class WallpaperSettingsViewController: WallpaperBaseViewController, Themeable {
 
     private lazy var resetDefaultButton: UIButton = .build { button in
         var config = UIButton.Configuration.tinted()
-        config.title = Locale.current.language.languageCode?.identifier == "vi"
+        config.title = Bundle.main.preferredLocalizations.first == "vi"
             ? "Mặc định"
             : "Reset Default"
         config.image = UIImage(systemName: "arrow.counterclockwise")
@@ -370,6 +370,7 @@ extension WallpaperSettingsViewController: PHPickerViewControllerDelegate {
         guard let provider = results.first?.itemProvider,
               provider.canLoadObject(ofClass: UIImage.self) else { return }
 
+        let logger = self.logger
         provider.loadObject(ofClass: UIImage.self) { [weak self] object, _ in
             guard let image = object as? UIImage else { return }
             let customID = "customUserWallpaper"
@@ -395,9 +396,9 @@ extension WallpaperSettingsViewController: PHPickerViewControllerDelegate {
                     }
                 }
             } catch {
-                self?.logger.log("Failed to save custom wallpaper: \(error.localizedDescription)",
-                                 level: .warning,
-                                 category: .homepage)
+                logger.log("Failed to save custom wallpaper: \(error.localizedDescription)",
+                           level: .warning,
+                           category: .homepage)
             }
         }
     }
