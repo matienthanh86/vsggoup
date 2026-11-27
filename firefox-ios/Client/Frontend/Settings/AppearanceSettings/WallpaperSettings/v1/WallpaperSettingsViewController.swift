@@ -234,9 +234,16 @@ private extension WallpaperSettingsViewController {
 
     @objc
     func resetDefaultTapped() {
+        let windowUUID = self.windowUUID
         WallpaperManager().setCurrentWallpaper(to: Wallpaper.baseWallpaper) { [weak self] result in
             ensureMainThread {
                 if case .success = result {
+                    let action = WallpaperAction(
+                        wallpaperConfiguration: WallpaperConfiguration(wallpaper: Wallpaper.baseWallpaper),
+                        windowUUID: windowUUID,
+                        actionType: WallpaperActionType.wallpaperSelected
+                    )
+                    store.dispatch(action)
                     self?.showToast()
                 }
             }
@@ -386,10 +393,19 @@ extension WallpaperSettingsViewController: PHPickerViewControllerDelegate {
                 for imageType in WallpaperImageType.allCases {
                     try storageUtility.store(image, withName: customWallpaper.fileName(for: imageType))
                 }
+                let windowUUID = self?.windowUUID
                 ensureMainThread {
                     WallpaperManager().setCurrentWallpaper(to: customWallpaper) { result in
                         ensureMainThread {
                             if case .success = result {
+                                if let windowUUID {
+                                    let action = WallpaperAction(
+                                        wallpaperConfiguration: WallpaperConfiguration(wallpaper: customWallpaper),
+                                        windowUUID: windowUUID,
+                                        actionType: WallpaperActionType.wallpaperSelected
+                                    )
+                                    store.dispatch(action)
+                                }
                                 self?.showToast()
                             }
                         }
