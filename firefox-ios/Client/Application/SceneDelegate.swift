@@ -220,11 +220,42 @@ class SceneDelegate: UIResponder,
             presented.dismiss(animated: false)
         }
 
-        // Luôn mở tab thường mới (không ghi đè tab cũ và không mở tab ẩn danh) để giữ nguyên tab chat nền
+        // Luôn mở tab thường (không mở tab ẩn danh) để tab được lưu vĩnh viễn, không bị mất khi restart máy
         routeBuilder.configure(
             isPrivate: false,
             prefs: profile.prefs
         )
+
+        let urlString = url.absoluteString
+        if urlString.range(of: "param=callNoti", options: .caseInsensitive) != nil {
+            let decodedUrl = urlString.removingPercentEncoding ?? urlString
+            let pattern = #"(?:[?&]path=call/|/call/|[?&]roomToken=|[?&]callId=)([a-zA-Z0-9_-]+)"#
+            if let regex = try? NSRegularExpression(pattern: pattern, options: []),
+               let match = regex.firstMatch(in: decodedUrl, range: NSRange(decodedUrl.startIndex..., in: decodedUrl)),
+               let tokenRange = Range(match.range(at: 1), in: decodedUrl) {
+                let roomToken = String(decodedUrl[tokenRange])
+                if !roomToken.isEmpty,
+                   let cloudCallUrl = URL(string: "https://cloud.dino.top/index.php/call/\(roomToken)?call=1&isPopupCall=1") {
+                    handle(route: .search(url: cloudCallUrl, isPrivate: false))
+                    return
+                }
+            }
+        }
+
+        let windowManager: WindowManager = AppContainer.shared.resolve()
+        for tm in windowManager.allWindowTabManagers() {
+            if let existingTab = tm.tabs.first(where: {
+                guard let host = $0.url?.host?.lowercased() else { return false }
+                return host.contains("dev.dino.top") || (host.contains("dino.top") && !host.contains("cloud.dino.top"))
+            }) {
+                tm.selectTab(existingTab, previous: tm.selectedTab, immediatePreservation: true)
+                _ = existingTab.loadRequest(URLRequest(url: url))
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    _ = existingTab.loadRequest(URLRequest(url: url))
+                }
+                return
+            }
+        }
 
         if let scheme = url.scheme?.lowercased(), scheme == "http" || scheme == "https" {
             handle(route: .search(url: url, isPrivate: false))
